@@ -5,8 +5,22 @@ FMP_BASE_URI = "https://financialmodelingprep.com/api/v3/"
 # DATA_PATH = pathlib.Path(__file__).parent.parent.absolute().as_posix()
 DATA_PATH = pathlib.Path(__file__).parent.parent / "data"
 
-def get_income_statement_uri(symbol, num_reports):
+def get_income_statement_uri(symbol, num_reports=None):
     uri = FMP_BASE_URI + "income-statement/" + symbol + "?apikey=" + FMP_API_KEY + "&period=quarter"
+    if num_reports is None:
+        return uri
+    else:
+        return uri + "&limit=" + str(num_reports)
+
+def get_balance_sheet_statement_uri(symbol, num_reports=None):
+    uri = FMP_BASE_URI + "balance-sheet-statement/" + symbol + "?apikey=" + FMP_API_KEY + "&period=quarter"
+    if num_reports is None:
+        return uri
+    else:
+        return uri + "&limit=" + str(num_reports)
+
+def get_cash_flow_statement_uri(symbol, num_reports=None):
+    uri = FMP_BASE_URI + "cash-flow-statement/" + symbol + "?apikey=" + FMP_API_KEY + "&period=quarter"
     if num_reports is None:
         return uri
     else:
