@@ -15,6 +15,7 @@ class Fundamentals():
         self.income_statements = None
         self.balance_sheet_statements = None
         self.cash_flow_statement = None
+        # self.financial_ratios = None
         self.avg_qtr_market_price = None
         self.report_dates = None
 
@@ -45,6 +46,10 @@ class Fundamentals():
         json_data = response.read().decode("utf-8")
         self.cash_flow_statement = pd.DataFrame(json.loads(json_data))
 
+        # # financial ratios
+        # response = urlopen(global_defs.get_financial_ratios_uri(self.symbol, self.num_qtr_reports_requested), context=context)
+        # json_data = response.read().decode("utf-8")
+        # self.financial_ratios = pd.DataFrame(json.loads(json_data))
 
 
     def calc_avg_quarterly_market_price(self, report_dates):
