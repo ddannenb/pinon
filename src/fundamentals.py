@@ -6,6 +6,7 @@ import global_defs
 from datetime import datetime
 from datetime import timedelta
 import ssl
+import math
 
 class Fundamentals():
     def __init__(self, symbol, num_qtr_reports_requested):
@@ -22,8 +23,9 @@ class Fundamentals():
 
     def fetch_all(self):
         self.get_financial_statements()
-        self.clean_financial_statements()
+        self.trim_statement_gaps()
         self.calc_avg_quarterly_market_price(self.report_dates)
+        self.trim_missing_prices()
         print("Fetched fundamentals for " + self.symbol)
 
 
@@ -52,7 +54,7 @@ class Fundamentals():
         # json_data = response.read().decode("utf-8")
         # self.financial_ratios = pd.DataFrame(json.loads(json_data))
 
-    def clean_financial_statements(self):
+    def trim_statement_gaps(self):
         # common report dates
         self.report_dates = pd.merge(self.income_statements['date'], self.balance_sheet_statements['date'], on=['date'], how='inner')
         self.report_dates = pd.merge(self.report_dates, self.cash_flow_statement['date'], on='date', how='inner')
@@ -72,6 +74,14 @@ class Fundamentals():
         self.income_statements = pd.merge(self.income_statements, self.report_dates, on='date', how='inner')
         self.balance_sheet_statements = pd.merge(self.balance_sheet_statements, self.report_dates, on='date', how='inner')
         self.cash_flow_statement = pd.merge(self.cash_flow_statement, self.report_dates, on='date', how='inner')
+
+    def trim_missing_prices(self):
+        trunc_row = self.avg_qtr_market_price['avg_market_price'].isna().idxmax()
+        self.avg_qtr_market_price = self.avg_qtr_market_price.truncate(after=trunc_row - 1)
+        self.report_dates = self.report_dates.truncate(after=trunc_row - 1)
+        self.income_statements = self.income_statements.truncate(after=trunc_row - 1)
+        self.balance_sheet_statements = self.balance_sheet_statements.truncate(after=trunc_row - 1)
+        self.cash_flow_statement = self.cash_flow_statement.truncate(after=trunc_row - 1)
 
 
     def calc_avg_quarterly_market_price(self, report_dates):
@@ -98,7 +108,7 @@ class Fundamentals():
             self.avg_qtr_market_price.at[row_n, "qtr_start_date"] = qtr_start_date
             self.avg_qtr_market_price.at[row_n, "qtr_end_date"] = qtr_end_date
 
-fund = Fundamentals('XOM', 200)
+fund = Fundamentals('V', 200)
 fund.fetch_all()
 # fund.clean_financial_statements()
 print('Done')
