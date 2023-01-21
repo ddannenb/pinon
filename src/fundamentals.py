@@ -22,7 +22,8 @@ class Fundamentals():
 
     def fetch_all(self):
         self.get_financial_statements()
-        self.calc_avg_quarterly_market_price(self.income_statements[["date"]])
+        self.clean_financial_statements()
+        self.calc_avg_quarterly_market_price(self.report_dates)
         print("Fetched fundamentals for " + self.symbol)
 
 
@@ -51,6 +52,27 @@ class Fundamentals():
         # json_data = response.read().decode("utf-8")
         # self.financial_ratios = pd.DataFrame(json.loads(json_data))
 
+    def clean_financial_statements(self):
+        # common report dates
+        self.report_dates = pd.merge(self.income_statements['date'], self.balance_sheet_statements['date'], on=['date'], how='inner')
+        self.report_dates = pd.merge(self.report_dates, self.cash_flow_statement['date'], on='date', how='inner')
+
+        #trim reports if there are quarterly gaps
+        sdate = datetime.strptime(self.report_dates.at[0, 'date'], '%Y-%m-%d')
+        trunc_row = self.report_dates.shape[0]
+        for row_n in range(1, self.report_dates.shape[0]):
+            edate = datetime.strptime(self.report_dates.at[row_n, 'date'], '%Y-%m-%d')
+            datediff = sdate - edate
+            sdate = edate
+            if (datediff.days < 70) | (datediff.days >120):
+                trunc_row = row_n
+            print(datediff.days)
+
+        self.report_dates = self.report_dates.truncate(after=trunc_row - 1)
+        self.income_statements = pd.merge(self.income_statements, self.report_dates, on='date', how='inner')
+        self.balance_sheet_statements = pd.merge(self.balance_sheet_statements, self.report_dates, on='date', how='inner')
+        self.cash_flow_statement = pd.merge(self.cash_flow_statement, self.report_dates, on='date', how='inner')
+
 
     def calc_avg_quarterly_market_price(self, report_dates):
         self.avg_qtr_market_price = pd.DataFrame(index=range(report_dates.shape[0]), columns=["qtr_start_date", "qtr_end_date", "avg_market_price"])
@@ -75,3 +97,8 @@ class Fundamentals():
             self.avg_qtr_market_price.at[row_n, "avg_market_price"] = qtr_mean
             self.avg_qtr_market_price.at[row_n, "qtr_start_date"] = qtr_start_date
             self.avg_qtr_market_price.at[row_n, "qtr_end_date"] = qtr_end_date
+
+fund = Fundamentals('XOM', 200)
+fund.fetch_all()
+# fund.clean_financial_statements()
+print('Done')
