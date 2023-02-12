@@ -39,8 +39,8 @@ class ModelRunner:
 
 runner = ModelRunner()
 config = runner.read_excel_config()
-peers = config['V']
-runner.get_fundamentas("V", peers, 10)
+peers = config['PAGS']
+runner.get_fundamentas("PAGS", peers, 10)
 tm = TradingMultiples()
 tm.run_pe_mutiples("V", peers, runner.fundamentals, runner.peer_fundamentals)
 print("model_runner")

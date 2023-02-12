@@ -41,5 +41,5 @@ def get_historical_price_uri(symbol, start_date, end_date):
     return FMP_BASE_URI + "historical-price-full/" + symbol + "?apikey=" + FMP_API_KEY + "&from=" + start_date + "&to=" + end_date
 
 
-def get_config_file_path(file_name="master.xlsx"):
+def get_config_file_path(file_name="master_short.xlsx"):
     return DATA_PATH / file_name

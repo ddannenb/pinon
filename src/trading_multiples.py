@@ -8,22 +8,17 @@ class TradingMultiples:
         self.pe_mutiples = pd.DataFrame()
 
     def run_pe_mutiples(self, target_symbol, peers, target_fundamentals, peer_fundamentals):
-        # # since pe is using a ttm approach, additional 3 qtr reports are fetched
-        # num_reports = num_years * 4 + 3
-        #
-        # self.fundamentals = Fundamentals(symbol, num_reports)
-        # self.fundamentals.fetch_all()
 
         self.target_ttm_pe = self.calc_ttm_pe(target_fundamentals)
 
+        # delta between target and peer ratios
         for ndx, row in peers.iterrows():
             peer_symbol = row['peer_symbol']
-            # self.peer_fundamentals[peer_symbol] = Fundamentals(peer_symbol, num_reports)
-            # self.peer_fundamentals[peer_symbol].fetch_all()
 
             self.peer_ttm_pe[peer_symbol] = self.calc_ttm_pe(peer_fundamentals[peer_symbol])
             self.peer_ttm_pe[peer_symbol]['delta_target'] = (self.peer_ttm_pe[peer_symbol]['ttm_pe'] /
                                                              self.target_ttm_pe['ttm_pe']) - 1
+            print('break')
 
         # adjustment to peers based on historic deltas
         for ndx, row in peers.iterrows():
@@ -101,7 +96,6 @@ class TradingMultiples:
             amp = fundamentals.avg_qtr_market_price.at[n_qtr, "avg_market_price"]
             ttm_pe = amp / ttm_eps
             ttm_pe_ratios.at[n_qtr, "ttm_eps"] = ttm_eps
-            # ttm_pe_ratios.at[n_qtr, "avg_market_price"] = amp
             ttm_pe_ratios.at[n_qtr, "ttm_pe"] = ttm_pe
 
         return ttm_pe_ratios
