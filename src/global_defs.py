@@ -3,7 +3,7 @@ import pathlib
 FMP_API_KEY = "8c0af34f05d7501418ffd0b08e1958d8"
 FMP_BASE_URI = "https://financialmodelingprep.com/api/v3/"
 # DATA_PATH = pathlib.Path(__file__).parent.parent.absolute().as_posix()
-DATA_PATH = pathlib.Path(__file__).parent.parent / "data"
+DATA_PATH = pathlib.Path(__file__).parent.parent / "config"
 
 
 def get_income_statement_uri(symbol, num_reports=None):

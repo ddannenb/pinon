@@ -1,12 +1,14 @@
-from urllib.request import urlopen
-import certifi
 import json
-import pandas as pd
-import global_defs
+import ssl
 from datetime import datetime
 from datetime import timedelta
-import ssl
-import math
+from urllib.request import urlopen
+
+import certifi
+import pandas as pd
+
+import global_defs
+
 
 class Fundamentals():
     def __init__(self, symbol, num_qtr_reports_requested):

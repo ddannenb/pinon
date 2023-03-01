@@ -1,7 +1,8 @@
+import pandas as pd
+
+import global_defs
 from fundamentals import Fundamentals
 from trading_multiples import TradingMultiples
-import pandas as pd
-import global_defs
 
 
 class ModelRunner:
