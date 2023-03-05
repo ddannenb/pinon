@@ -1,6 +1,6 @@
 import pandas as pd
 
-import global_defs
+import simfin_global_cache
 from fundamentals import Fundamentals
 from trading_multiples import TradingMultiples
 

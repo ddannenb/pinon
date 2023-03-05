@@ -1,11 +1,13 @@
 import pathlib
 import pandas as pd
+import simfin as sf
 
 PROJ_PATH = pathlib.Path(__file__).parent.parent
 CONFIG_PATH = PROJ_PATH / "config"
+SIMFIN_DATA_PATH = PROJ_PATH / 'simfin_data'
 
 
-class ClParser:
+class Config:
     def __init__(self, config_name):
         self.mode = None
         self.targets = None
@@ -14,7 +16,14 @@ class ClParser:
         self.config_path = CONFIG_PATH / f"{config_name}.xlsx"
         if not self.config_path.is_file():
             raise TypeError(f"{self.config_path} is not a valid file")
-        print('Here5')
+        print(f"Config file found at: {self.config_path}")
+
+        # Simfin setup
+        sf.set_data_dir(SIMFIN_DATA_PATH)
+        print(f"Simfin data directory: {SIMFIN_DATA_PATH}")
+
+        sf.load_api_key(CONFIG_PATH / 'simfin_api_key.txt')
+
     def parse_args(self):
         args = self.argumentParser.parse_args()
         self.mode = args.mode
@@ -47,7 +56,9 @@ class ClParser:
             target_sheet_recent_reports.insert(0, 'report_quarter', rd_split[0])
             target_sheet_recent_reports.insert(0, 'report_year', rd_split[1])
             # target_sheet_recent_reports['report_year'] = rd_split[1]
-            self.master_config[target_symbol]['recent_reports'] = target_sheet_recent_reports.drop(['report_date'], axis=1).to_dict('records')
+            self.master_config[target_symbol]['recent_reports'] = target_sheet_recent_reports.drop(['report_date'],
+                                                                                                   axis=1).to_dict(
+                'records')
             # self.master_config[target_symbol]['recent_reports'] = target_sheet_recent_reports.to_dict('records')
             print('Here')
 
@@ -58,7 +69,6 @@ class ClParser:
 
     def is_run_mode(self):
         return self.mode == 'run'
-
 
 # clp = ClParser()
 # clp.parse_args()

@@ -1,3 +1,4 @@
+
 """A setuptools based setup module.
 
 See:
@@ -118,7 +119,7 @@ setup(
 
     # When your source code is in a subdirectory under the project root, e.g.
     # `src/`, it is necessary to specify the `package_dir` argument.
-    package_dir={'': 'src'},  # Optional
+    package_dir={'': 'pinon'},  # Optional
 
     # You can just specify package directories manually here if your project is
     # simple. Or you can use find_packages().
@@ -129,7 +130,7 @@ setup(
     #
     #   py_modules=["my_module"],
     #
-    packages=find_packages(where='src'),  # Required
+    packages=find_packages(where='pinon'),  # Required
 
     # Specify which Python versions you support. In contrast to the
     # 'Programming Language' classifiers above, 'pip install' will check this
@@ -146,7 +147,8 @@ setup(
     install_requires=['pandas>=1.5.2'
                       'scipy>=1.10.0',
                       'seaborn>=0.12.2',  # Optional
-                      'numpy>=1.23.4'],
+                      'numpy>=1.23.4',
+                      'simfin>=0.9.0'],
 
 
     # List additional groups of dependencies here (e.g. development
