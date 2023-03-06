@@ -9,6 +9,9 @@ class DailyPrices:
         return self.daily_prices.loc[tickers]
 
     def downsample_prices(self, ticker, period='quarterly'):
+        """
+         Returns prices downsampled to quarterly mean. The quarterly date index represents the right side fo the interval
+        """
         pl = period.lower()
         rule = None
         if pl == 'quarterly' or pl == 'q':
