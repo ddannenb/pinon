@@ -6,3 +6,4 @@ COMPANY_NAME = sf_cols.COMPANY_NAME
 INDUSTRY_ID = sf_cols.INDUSTRY_ID
 PEER_WEIGHT = 'Peer Weight'
 PEER_LIST = 'Peer List'
+EVALUATE = 'Evaluate'
