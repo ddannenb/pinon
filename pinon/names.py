@@ -4,6 +4,7 @@ PAST_YEARS_REQUESTED = 'Past Years Requested'
 TICKER = sf_cols.TICKER
 COMPANY_NAME = sf_cols.COMPANY_NAME
 INDUSTRY_ID = sf_cols.INDUSTRY_ID
+SIMFIN_SCHEMA = 'Simfin Schema'
 PEER_WEIGHT = 'Peer Weight'
 PEER_LIST = 'Peer List'
 EVALUATE = 'Evaluate'

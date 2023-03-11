@@ -6,6 +6,10 @@ __daily_share_prices = None
 __daily_share_prices_updated = None
 __quarterly_income_statements = None
 __quarterly_income_statements_updated = None
+__quarterly_income_statements_bank = None
+__quarterly_income_statements_bank_updated = None
+__quarterly_income_statements_insurance = None
+__quarterly_income_statements_insurance_updated = None
 __companies = None
 __companies_updated = None
 
@@ -20,11 +24,28 @@ def _load_daily_share_prices():
 def _load_quarterly_income_statements():
     global __quarterly_income_statements_updated
     global __quarterly_income_statements
+
     if __quarterly_income_statements is None or __quarterly_income_statements_updated != date.today():
         __quarterly_income_statements = sf.load_income(variant='quarterly', market='us', refresh_days=0, index=[sf_cols.TICKER, sf_cols.REPORT_DATE])
         __quarterly_income_statements_updated = date.today()
     return __quarterly_income_statements
+def _load_quarterly_income_statements_bank():
+    global __quarterly_income_statements_bank_updated
+    global __quarterly_income_statements_bank
+    if __quarterly_income_statements_bank is None or __quarterly_income_statements_bank_updated != date.today():
+        __quarterly_income_statements_bank = sf.load_income_banks(variant='quarterly', market='us', refresh_days=0, index=[sf_cols.TICKER, sf_cols.REPORT_DATE])
+        __quarterly_income_statements_bank_updated = date.today()
 
+    return __quarterly_income_statements_bank
+
+def _load_quarterly_income_statements_insurance():
+    global __quarterly_income_statements_insurance_updated
+    global __quarterly_income_statements_insurance
+
+    if __quarterly_income_statements_insurance is None or __quarterly_income_statements_insurance_updated != date.today():
+        __quarterly_income_statements_insurance = sf.load_income_insurance(variant='quarterly', market='us', refresh_days=0, index=[sf_cols.TICKER, sf_cols.REPORT_DATE])
+        __quarterly_income_statements_insurance_updated = date.today()
+    return __quarterly_income_statements_insurance
 def _load_companies():
     global __companies
     global __companies_updated
