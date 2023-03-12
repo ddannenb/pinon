@@ -39,12 +39,16 @@ class Config:
         funds = Fundamentals()
 
         for ndx, row in companies_section.iterrows():
-            c = comp.get_company(row[pn_cols.TICKER])
+            ticker = row[pn_cols.TICKER]
+            simfin_schema = funds.get_simfin_schema(ticker)
+            c = comp.get_company(ticker)
             if c is None:
-                print(f"There is an error in the supplied ticker symbol {row[pn_cols.TICKER]} in Company List of sheet: {sheet_name} of config file: {self.config_path}. It was not found and was dropped from the list.")
+                print(f"There is an error in the supplied ticker symbol {ticker} in Company List of sheet: {sheet_name} of config file: {self.config_path}. Company was not found and was dropped from the list.")
+            elif simfin_schema is None:
+                print(f"There is an error in the supplied ticker symbol {ticker} in Company List of sheet: {sheet_name} of config file: {self.config_path}. Financials are not available, company was dropped from the list.")
+            elif not funds.is_standard_reporting_dates(ticker):
+                print(f"There is an error in the supplied ticker symbol {ticker} in Company List of sheet: {sheet_name} of config file: {self.config_path}. Company uses non stardard quarterly reporting date not currently supported. Company was dropped from the list.")
             else:
-                ticker = row[pn_cols.TICKER]
-                simfin_schema = funds.get_simfin_schema(ticker)
                 cc = pd.Series(c)
                 all_peers.append(ticker)
                 cc[pn_cols.TICKER] = ticker
@@ -53,8 +57,8 @@ class Config:
                 cc[pn_cols.PEER_WEIGHT] = row[pn_cols.PEER_WEIGHT]
                 cc[pn_cols.EVALUATE] = True if (row[pn_cols.EVALUATE].lower() == 'y' or row[pn_cols.EVALUATE].lower() == 'yes') else False
                 cc[pn_cols.PEER_LIST] = [] if cc[pn_cols.EVALUATE] else None
-                cc[pn_cols.FIRST_REPORT_DATE] = funds.get_first_report_date(ticker, simfin_schema)
-                cc[pn_cols.LAST_REPORT_DATE] = funds.get_last_report_date(ticker, simfin_schema)
+                cc[pn_cols.FIRST_REPORT_DATE] = funds.get_first_report_date(ticker)
+                cc[pn_cols.LAST_REPORT_DATE] = funds.get_last_report_date(ticker)
                 self.company_details.loc[len(self.company_details.index)] = cc
 
         self.company_details.set_index(pn_cols.TICKER, inplace=True, drop=True)
