@@ -13,7 +13,11 @@ SIMFIN_DATA_PATH = PROJ_PATH / 'simfin_data'
 
 class Config:
     def __init__(self, config_name):
-        self.company_details = None
+        self.companies = None
+        self.breaking_reports = None
+        self.forecasts = None
+
+        # TODO pass config_path into constructor from MasterConfig
         self.config_path = CONFIG_PATH / f"{config_name}.xlsx"
         if not self.config_path.is_file():
             raise TypeError(f"{self.config_path} is not a valid file")
@@ -25,14 +29,23 @@ class Config:
 
         sf.load_api_key(CONFIG_PATH / 'simfin_api_key.txt')
 
-    def parse_master_sheet(self):
-        master_sheet = pd.read_excel(self.config_path, sheet_name="Master", header=1, nrows=20)
-        comp = Companies()
-        return master_sheet
+    def parse_breaking_reports(self, sheet_name):
+        self.breaking_reports = pd.DataFrame(columns=[pn_cols.TICKER, pn_cols.REPORT_DATE, pn_cols.EPS_BREAKING, pn_cols.REVENUE_BREAKING])
+        self.breaking_reports = pd.read_excel(self.config_path, sheet_name=sheet_name, header=32, nrows=10)
+        self.breaking_reports.set_index([pn_cols.TICKER, pn_cols.REPORT_DATE], inplace=True)
+
+        return self.breaking_reports
+
+    def parse_forecasts(self, sheet_name):
+        self.forecasts = pd.DataFrame(columns=[pn_cols.TICKER, pn_cols.REPORT_DATE, pn_cols.EPS_FORECAST, pn_cols.REVENUE_FORECAST])
+        self.forecasts = pd.read_excel(self.config_path, sheet_name=sheet_name, header=46)
+        self.forecasts.set_index([pn_cols.TICKER, pn_cols.REPORT_DATE], inplace=True)
+
+        return self.forecasts
 
     def parse_target_sheet(self, sheet_name, past_years_requested=-1):
         companies_section = pd.read_excel(self.config_path, sheet_name=sheet_name, header=2, nrows=25)
-        self.company_details = pd.DataFrame(
+        self.companies = pd.DataFrame(
             columns=[pn_cols.TICKER, pn_cols.COMPANY_NAME, pn_cols.INDUSTRY_ID, pn_cols.SIMFIN_SCHEMA,  pn_cols.PAST_YEARS_REQUESTED, pn_cols.PEER_WEIGHT, pn_cols.EVALUATE, pn_cols.PEER_LIST, pn_cols.FIRST_REPORT_DATE, pn_cols.LAST_REPORT_DATE])
         all_peers = []
         comp = Companies()
@@ -59,19 +72,19 @@ class Config:
                 cc[pn_cols.PEER_LIST] = [] if cc[pn_cols.EVALUATE] else None
                 cc[pn_cols.FIRST_REPORT_DATE] = funds.get_first_report_date(ticker)
                 cc[pn_cols.LAST_REPORT_DATE] = funds.get_last_report_date(ticker)
-                self.company_details.loc[len(self.company_details.index)] = cc
+                self.companies.loc[len(self.companies.index)] = cc
 
-        self.company_details.set_index(pn_cols.TICKER, inplace=True, drop=True)
+        self.companies.set_index(pn_cols.TICKER, inplace=True, drop=True)
 
-        eval_mask = (self.company_details[pn_cols.EVALUATE])
-        eval_list = self.company_details[eval_mask].index.tolist()
+        eval_mask = (self.companies[pn_cols.EVALUATE])
+        eval_list = self.companies[eval_mask].index.tolist()
 
         for c in eval_list:
             # self.company_details[peer, pn_cols.PEER_LIST] = [x for x in all_peers if x != peer]
             pl = [x for x in all_peers if x != c]
-            self.company_details.at[c, pn_cols.PEER_LIST] = pl
+            self.companies.at[c, pn_cols.PEER_LIST] = pl
 
-        return self.company_details
+        return self.companies
 
 
 # clp = ClParser()
