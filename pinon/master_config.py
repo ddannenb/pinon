@@ -2,7 +2,7 @@ import pathlib
 import pandas as pd
 import simfin as sf
 
-import pinon.names as pn_cols
+import names as pn_cols
 from fundamentals import Fundamentals
 from companies import Companies
 

@@ -2,7 +2,7 @@ import pathlib
 import pandas as pd
 import simfin as sf
 
-import pinon.names as pn_cols
+import names as pn_cols
 from fundamentals import Fundamentals
 from companies import Companies
 
@@ -12,13 +12,16 @@ SIMFIN_DATA_PATH = PROJ_PATH / 'simfin_data'
 
 
 class Config:
-    def __init__(self, config_name):
+    def __init__(self, master_config_name, target_sheet_name, past_years_requested=-1):
         self.companies = None
         self.breaking_reports = None
         self.forecasts = None
+        self.master_config_name = master_config_name
+        self.target_sheet_name = target_sheet_name
+        self.past_years_requested = past_years_requested
 
         # TODO pass config_path into constructor from MasterConfig
-        self.config_path = CONFIG_PATH / f"{config_name}.xlsx"
+        self.config_path = CONFIG_PATH / f"{master_config_name}.xlsx"
         if not self.config_path.is_file():
             raise TypeError(f"{self.config_path} is not a valid file")
         print(f"Config file found at: {self.config_path}")
@@ -29,23 +32,27 @@ class Config:
 
         sf.load_api_key(CONFIG_PATH / 'simfin_api_key.txt')
 
-    def parse_breaking_reports(self, sheet_name):
-        self.breaking_reports = pd.DataFrame(columns=[pn_cols.TICKER, pn_cols.REPORT_DATE, pn_cols.EPS_BREAKING, pn_cols.REVENUE_BREAKING])
-        self.breaking_reports = pd.read_excel(self.config_path, sheet_name=sheet_name, header=32, nrows=10)
-        self.breaking_reports.set_index([pn_cols.TICKER, pn_cols.REPORT_DATE], inplace=True)
+        self.companies = self.parse_target_sheet(self.target_sheet_name, self.past_years_requested)
+        self.breaking_reports = self.parse_breaking_reports(self.target_sheet_name)
+        self.forecasts = self.parse_forecasts(self.target_sheet_name)
 
-        return self.breaking_reports
+    def parse_breaking_reports(self, sheet_name):
+        breaking_reports = pd.DataFrame(columns=[pn_cols.TICKER, pn_cols.REPORT_DATE, pn_cols.EPS_BREAKING, pn_cols.REVENUE_BREAKING])
+        breaking_reports = pd.read_excel(self.config_path, sheet_name=sheet_name, header=32, nrows=10)
+        breaking_reports.set_index([pn_cols.TICKER, pn_cols.REPORT_DATE], inplace=True)
+
+        return breaking_reports
 
     def parse_forecasts(self, sheet_name):
-        self.forecasts = pd.DataFrame(columns=[pn_cols.TICKER, pn_cols.REPORT_DATE, pn_cols.EPS_FORECAST, pn_cols.REVENUE_FORECAST])
-        self.forecasts = pd.read_excel(self.config_path, sheet_name=sheet_name, header=46)
-        self.forecasts.set_index([pn_cols.TICKER, pn_cols.REPORT_DATE], inplace=True)
+        forecasts = pd.DataFrame(columns=[pn_cols.TICKER, pn_cols.REPORT_DATE, pn_cols.EPS_FORECAST, pn_cols.REVENUE_FORECAST])
+        forecasts = pd.read_excel(self.config_path, sheet_name=sheet_name, header=46)
+        forecasts.set_index([pn_cols.TICKER, pn_cols.REPORT_DATE], inplace=True)
 
-        return self.forecasts
+        return forecasts
 
     def parse_target_sheet(self, sheet_name, past_years_requested=-1):
         companies_section = pd.read_excel(self.config_path, sheet_name=sheet_name, header=2, nrows=25)
-        self.companies = pd.DataFrame(
+        companies = pd.DataFrame(
             columns=[pn_cols.TICKER, pn_cols.COMPANY_NAME, pn_cols.INDUSTRY_ID, pn_cols.SIMFIN_SCHEMA,  pn_cols.PAST_YEARS_REQUESTED, pn_cols.PEER_WEIGHT, pn_cols.EVALUATE, pn_cols.PEER_LIST, pn_cols.FIRST_REPORT_DATE, pn_cols.LAST_REPORT_DATE])
         all_peers = []
         comp = Companies()
@@ -72,22 +79,15 @@ class Config:
                 cc[pn_cols.PEER_LIST] = [] if cc[pn_cols.EVALUATE] else None
                 cc[pn_cols.FIRST_REPORT_DATE] = funds.get_first_report_date(ticker)
                 cc[pn_cols.LAST_REPORT_DATE] = funds.get_last_report_date(ticker)
-                self.companies.loc[len(self.companies.index)] = cc
+                companies.loc[len(companies.index)] = cc
 
-        self.companies.set_index(pn_cols.TICKER, inplace=True, drop=True)
+        companies.set_index(pn_cols.TICKER, inplace=True, drop=True)
 
-        eval_mask = (self.companies[pn_cols.EVALUATE])
-        eval_list = self.companies[eval_mask].index.tolist()
+        eval_mask = (companies[pn_cols.EVALUATE])
+        eval_list = companies[eval_mask].index.tolist()
 
         for c in eval_list:
-            # self.company_details[peer, pn_cols.PEER_LIST] = [x for x in all_peers if x != peer]
             pl = [x for x in all_peers if x != c]
-            self.companies.at[c, pn_cols.PEER_LIST] = pl
+            companies.at[c, pn_cols.PEER_LIST] = pl
 
-        return self.companies
-
-
-# clp = ClParser()
-# clp.parse_args()
-# clp.read_excel_config()
-# print('Done')
+        return companies

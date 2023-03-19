@@ -8,6 +8,10 @@ class Fundamentals():
         self.quarterly_income_statements_bank = sfc._load_quarterly_income_statements_bank()
         self.quarterly_income_statements_insurance = sfc._load_quarterly_income_statements_insurance()
 
+        self.quarterly_derived_ratios = sfc._load_quarterly_derived_ratios()
+        self.quarterly_derived_ratios_bank = sfc._load_quarterly_derived_ratios_bank()
+        self.quarterly_derived_ratios_insurance = sfc._load_quarterly_derived_ratios_insurance()
+
     def get_quarterly_income_statement(self, ticker):
         schema = self.get_simfin_schema(ticker)
         if schema is None:
@@ -18,6 +22,17 @@ class Fundamentals():
             return self.quarterly_income_statements_bank.loc[ticker]
         elif schema == 'insurance':
             return self.quarterly_income_statements_insurance.loc[ticker]
+
+    def get_quarterly_derived_ratios(self, ticker):
+        schema = self.get_simfin_schema(ticker)
+        if schema is None:
+            return None
+        if schema == 'normal':
+            return self.quarterly_derived_ratios.loc[ticker]
+        elif schema == 'bank':
+            return self.quarterly_derived_ratios_bank.loc[ticker]
+        elif schema == 'insurance':
+            return self.quarterly_derived_ratios_insurance.loc[ticker]
 
     def get_simfin_schema(self, ticker):
         if ticker in self.quarterly_income_statements.index:
