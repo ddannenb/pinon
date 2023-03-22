@@ -101,7 +101,7 @@ def _load_companies():
     global __companies
     global __companies_updated
     if __companies_updated is None or __companies_updated != date.today():
-        __companies = sf.load_companies(market='us')
+        __companies = sf.load_companies(market='us', refresh_days=10)
         __companies_updated = date.today()
     return __companies
 
