@@ -14,6 +14,12 @@ class Multiples:
         self.breaking_report = None
         self.breaking_report_date = None
 
+    def run_multiples(self):
+        self.init_dataframe()
+        self.calc_quarterly_pe()
+        # TODO call other ratio methods here
+        return self.multiples
+
     def init_dataframe(self):
         inc = self.fundamentals.get_quarterly_income_statement(self.ticker)
         dp = self.daily_prices.get_downsampled_prices(self.ticker)
