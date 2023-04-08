@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import simfin.names as sf_cols
 
 import names as pn_cols
@@ -9,6 +10,7 @@ class Multiples:
         self.ticker = ticker
         self.config = config
         self.multiples = None
+        self.mu_multiples = None
         self.daily_prices = DailyPrices()
         self.fundamentals = Fundamentals()
         self.breaking_report = None
@@ -57,3 +59,22 @@ class Multiples:
         self.multiples.index.name = sf_cols.REPORT_DATE
 
         return self.multiples
+
+    def run_mu_multiples(self):
+        if self.multiples is None:
+            self.run_multiples()
+
+        self.mu_multiples = pd.DataFrame(columns=[pn_cols.MU_QTR_PE_RATIO, pn_cols.MU_TTM_QTR_PE_RATIO], index=['0 year', '1 year','3 year', '5 year'])
+        self.mu_multiples.index.name = pn_cols.MU_NUM_YEARS
+
+        self.mu_multiples.loc['0 year'] = [self.multiples.loc[:, pn_cols.QTR_PE_RATIO].tail(1).mean() / 4, self.multiples.loc[:, pn_cols.TTM_QTR_PE_RATIO].tail(1).mean()]
+        self.mu_multiples.loc['1 year'] = np.nan if self.multiples.shape[0] < 4 else [self.multiples.loc[:, pn_cols.QTR_PE_RATIO].tail(4).mean() / 4, self.multiples.loc[:, pn_cols.TTM_QTR_PE_RATIO].tail(4).mean()]
+        self.mu_multiples.loc['3 year'] = np.nan if self.multiples.shape[0] < 12 else [self.multiples.loc[:, pn_cols.QTR_PE_RATIO].tail(12).mean() / 4, self.multiples.loc[:, pn_cols.TTM_QTR_PE_RATIO].tail(12).mean()]
+        self.mu_multiples.loc['5 year'] = np.nan if self.multiples.shape[0] < 20 else [self.multiples.loc[:, pn_cols.QTR_PE_RATIO].tail(20).mean() / 4, self.multiples.loc[:, pn_cols.TTM_QTR_PE_RATIO].tail(20).mean()]
+
+    def calc_present_fv(self):
+        if self.mu_multiples is None:
+            self.run_mu_multiples()
+
+
+
