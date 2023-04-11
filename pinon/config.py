@@ -39,6 +39,7 @@ class Config:
     def parse_breaking_reports(self, sheet_name):
         breaking_reports = pd.DataFrame(columns=[pn_cols.TICKER, pn_cols.REPORT_DATE, pn_cols.EPS_BREAKING, pn_cols.REVENUE_BREAKING])
         breaking_reports = pd.read_excel(self.config_path, sheet_name=sheet_name, header=32, nrows=10)
+        breaking_reports[pn_cols.BREAKING_EMPLOYED] = False
         breaking_reports.set_index([pn_cols.TICKER, pn_cols.REPORT_DATE], inplace=True)
 
         return breaking_reports
