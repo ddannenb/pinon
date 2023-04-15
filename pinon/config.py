@@ -92,3 +92,13 @@ class Config:
             companies.at[c, pn_cols.PEER_LIST] = pl
 
         return companies
+
+    def get_breaking_report(self, ticker):
+        if ticker not in self.breaking_reports.index:
+            return None
+        brs = self.breaking_reports.loc[ticker]
+        br = brs[brs[pn_cols.BREAKING_EMPLOYED]]
+        return None if br.empty else br.reset_index().squeeze()
+        # # Move following block to config
+        # if ticker in br.index:
+        #     breaking_report_date = br.index.tolist()[0][1]
