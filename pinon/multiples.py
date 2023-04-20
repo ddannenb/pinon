@@ -20,6 +20,7 @@ class Multiples:
         self.init_multiples()
         self.calc_quarterly_pe()
         # TODO additional multiple calc go here
+        self.run_mu_multiples()
         return self.multiples
 
     def init_multiples(self):
@@ -93,11 +94,3 @@ class Multiples:
         self.mu_multiples.reset_index(inplace=True)
         self.mu_multiples.set_index([pn_cols.TICKER, pn_cols.MU_NUM_YEARS], inplace=True)
         self.mu_multiples.sort_index(inplace=True)
-
-    # TODO
-    def calc_present_fv(self):
-        if self.mu_multiples is None:
-            self.run_mu_multiples()
-
-
-

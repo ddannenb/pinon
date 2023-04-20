@@ -10,7 +10,15 @@ class Comps:
         self.peer_ks = None
         self.target_ks = None
         self.multiples = None
+        self.comp_ratios = None
         self.m = pn.Multiples(config)
+
+    def run(self):
+        self.run_variations()
+        self.run_peer_ks()
+        self.run_target_ks()
+        self.calc_present_comp_ratios()
+
     def run_variations(self):
         if self.multiples is None:
             self.multiples = self.m.run_multiples()
@@ -51,7 +59,7 @@ class Comps:
                 self.peer_ks = peer_k if self.peer_ks is None else pd.concat([self.peer_ks, peer_k])
         self.peer_ks.reset_index(inplace=True, drop=True)
         self.peer_ks.set_index([pn_cols.TARGET_TICKER, pn_cols.PEER_TICKER], inplace=True)
-        print('Here')
+
     def run_target_ks(self):
         self.target_ks = None
         if self.peer_ks is None:
@@ -64,9 +72,22 @@ class Comps:
             target_k.loc[len(target_k.index)] = [target_ticker, k_target_qtr_pe, k_target_qtr_ttm_pe]
             self.target_ks = target_k if self.target_ks is None else pd.concat([self.target_ks, target_k])
         self.target_ks.reset_index(inplace=True, drop=True)
-        self.target_ks.set_index([pn_cols.TARGET_TICKER])
-        print('Here')
+        self.target_ks.set_index([pn_cols.TARGET_TICKER], inplace=True)
+
+    def calc_present_comp_ratios(self):
+        ndx = pd.MultiIndex.from_product([self.target_ks.index.to_list(), pn_cols.YEAR_ROLLUP_LIST])
+        ndx.names = [pn_cols.TARGET_TICKER, pn_cols.MU_NUM_YEARS]
+        colx = pd.MultiIndex.from_product([[pn_cols.WTD_RATIOS, pn_cols.WTD_ADJ_RATIOS], [pn_cols.QTR_PE_RATIO, pn_cols.TTM_PE_RATIO]])
+        self.comp_ratios = pd.DataFrame(columns=colx, index=ndx)
+        for target_ticker in self.target_ks.index:
+            self.comp_ratios.loc[(target_ticker, pn_cols.WTD_RATIOS)] = 1
+            temp = self.m.mu_multiples.loc[target_ticker]
+            temp2 = self.comp_ratios.loc[self.comp_ratios.index.get_level_values(0).isin(self.config.companies.loc[target_ticker, pn_cols.PEER_LIST])]
+            print('Here')
 
 
+    def calc_fair_value(self):
+        if self.mu_multiples is None:
+            self.run_mu_multiples()
 
 

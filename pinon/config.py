@@ -102,3 +102,10 @@ class Config:
         # # Move following block to config
         # if ticker in br.index:
         #     breaking_report_date = br.index.tolist()[0][1]
+
+    def get_targets(self):
+        return self.companies.loc[self.companies[pn_cols.EVALUATE]]
+
+    def get_target_tickers(self):
+        targets = self.get_targets()
+        return targets.index.tolist()
