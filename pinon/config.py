@@ -54,7 +54,7 @@ class Config:
     def parse_target_sheet(self, sheet_name, past_years_requested=-1):
         companies_section = pd.read_excel(self.config_path, sheet_name=sheet_name, header=2, nrows=25)
         companies = pd.DataFrame(
-            columns=[pn_cols.TICKER, pn_cols.COMPANY_NAME, pn_cols.INDUSTRY_ID, pn_cols.SIMFIN_SCHEMA,  pn_cols.PAST_YEARS_REQUESTED, pn_cols.PEER_WEIGHT, pn_cols.EVALUATE, pn_cols.PEER_LIST, pn_cols.FIRST_REPORT_DATE, pn_cols.LAST_REPORT_DATE])
+            columns=[pn_cols.TICKER, pn_cols.COMPANY_NAME, pn_cols.INDUSTRY_ID, pn_cols.SIMFIN_SCHEMA, pn_cols.PAST_YEARS_REQUESTED, pn_cols.WEIGHT, pn_cols.EVALUATE, pn_cols.PEER_LIST, pn_cols.PEER_WEIGHTS, pn_cols.FIRST_REPORT_DATE, pn_cols.LAST_REPORT_DATE])
         all_peers = []
         comp = Companies()
         funds = Fundamentals()
@@ -75,7 +75,7 @@ class Config:
                 cc[pn_cols.TICKER] = ticker
                 cc[pn_cols.SIMFIN_SCHEMA] = simfin_schema
                 cc[pn_cols.PAST_YEARS_REQUESTED] = past_years_requested
-                cc[pn_cols.PEER_WEIGHT] = row[pn_cols.PEER_WEIGHT]
+                cc[pn_cols.WEIGHT] = row[pn_cols.WEIGHT]
                 cc[pn_cols.EVALUATE] = True if (row[pn_cols.EVALUATE].lower() == 'y' or row[pn_cols.EVALUATE].lower() == 'yes') else False
                 cc[pn_cols.PEER_LIST] = [] if cc[pn_cols.EVALUATE] else None
                 cc[pn_cols.FIRST_REPORT_DATE] = funds.get_first_report_date(ticker)
@@ -87,9 +87,17 @@ class Config:
         eval_mask = (companies[pn_cols.EVALUATE])
         eval_list = companies[eval_mask].index.tolist()
 
+        # Generate Peer List
         for c in eval_list:
             pl = [x for x in all_peers if x != c]
             companies.at[c, pn_cols.PEER_LIST] = pl
+
+        # Generate Peer Weights
+        for c in eval_list:
+            pc = companies.loc[companies.index.isin(companies.at[c, pn_cols.PEER_LIST])]
+            pws = pc[pn_cols.WEIGHT] / pc[pn_cols.WEIGHT].sum()
+            companies.at[c, pn_cols.PEER_WEIGHTS] = pws.tolist()
+
 
         return companies
 
@@ -109,3 +117,9 @@ class Config:
     def get_target_tickers(self):
         targets = self.get_targets()
         return targets.index.tolist()
+
+    def get_peer_list(self, target):
+        return self.companies.loc[target, pn_cols.PEER_LIST]
+
+    def get_peer_weights(self, target):
+        return self.companies.loc[target, pn_cols.PEER_WEIGHTS]

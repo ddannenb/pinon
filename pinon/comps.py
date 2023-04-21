@@ -47,13 +47,13 @@ class Comps:
 
         for target_ticker, target_ks in self.all_ks.groupby(level=pn_cols.TARGET_TICKER):
             m = self.config.companies.index.isin(self.config.companies.loc[target_ticker][pn_cols.PEER_LIST])
-            sum_peer_weights = self.config.companies.loc[m][pn_cols.PEER_WEIGHT].sum()
+            sum_peer_weights = self.config.companies.loc[m][pn_cols.WEIGHT].sum()
             for peer_ticker, peer_ks in target_ks.groupby(level=pn_cols.PEER_TICKER):
                 peer_k = pd.DataFrame(columns=[pn_cols.TARGET_TICKER, pn_cols.PEER_TICKER, pn_cols.K_PEER_QTR_PE, pn_cols.K_PEER_TTM_PE, pn_cols.K_PEER_WEIGHT])
                 k_peer_qtr_pe = peer_ks[pn_cols.K_QTR_PE].mean()
                 k_peer_ttm_qtr_pe = peer_ks[pn_cols.K_TTM_PE].mean()
 
-                k_peer_weight = self.config.companies.loc[peer_ticker][pn_cols.PEER_WEIGHT] / sum_peer_weights
+                k_peer_weight = self.config.companies.loc[peer_ticker][pn_cols.WEIGHT] / sum_peer_weights
                 peer_k.loc[len(peer_k.index)] = [target_ticker, peer_ticker, k_peer_qtr_pe, k_peer_ttm_qtr_pe, k_peer_weight]
 
                 self.peer_ks = peer_k if self.peer_ks is None else pd.concat([self.peer_ks, peer_k])
@@ -75,14 +75,22 @@ class Comps:
         self.target_ks.set_index([pn_cols.TARGET_TICKER], inplace=True)
 
     def calc_present_comp_ratios(self):
-        ndx = pd.MultiIndex.from_product([self.target_ks.index.to_list(), pn_cols.YEAR_ROLLUP_LIST])
-        ndx.names = [pn_cols.TARGET_TICKER, pn_cols.MU_NUM_YEARS]
-        colx = pd.MultiIndex.from_product([[pn_cols.WTD_RATIOS, pn_cols.WTD_ADJ_RATIOS], [pn_cols.QTR_PE_RATIO, pn_cols.TTM_PE_RATIO]])
+        ndx = pd.MultiIndex.from_product([self.target_ks.index.to_list(), pn_cols.MU_TIME_LIST])
+        ndx.names = [pn_cols.TARGET_TICKER, pn_cols.MU_TIME]
+        colx = pd.MultiIndex.from_product([[pn_cols.QTR_PE_RATIO, pn_cols.TTM_PE_RATIO], [pn_cols.UN_WTD_RATIOS, pn_cols.WTD_RATIOS, pn_cols.WTD_ADJ_RATIOS]])
         self.comp_ratios = pd.DataFrame(columns=colx, index=ndx)
-        for target_ticker in self.target_ks.index:
-            self.comp_ratios.loc[(target_ticker, pn_cols.WTD_RATIOS)] = 1
-            temp = self.m.mu_multiples.loc[target_ticker]
-            temp2 = self.comp_ratios.loc[self.comp_ratios.index.get_level_values(0).isin(self.config.companies.loc[target_ticker, pn_cols.PEER_LIST])]
+        for target_ticker in self.config.get_target_tickers():
+            target_k = self.target_ks.loc[target_ticker]
+            peer_weights = self.peer_ks.loc[target_ticker]
+            self.comp_ratios.loc[(target_ticker,), ([pn_cols.QTR_PE_RATIO, pn_cols.TTM_PE_RATIO], pn_cols.UN_WTD_RATIOS)] = 1
+            temp = self.m.mu_multiples.loc[self.config.get_peer_list(target_ticker)].groupby(level=1, axis=0).mean()
+            temp1 = self.m.mu_multiples.loc[self.config.get_peer_list(target_ticker)]
+            s = pd.Series(self.config.get_peer_weights(target_ticker), index=self.config.get_peer_list(target_ticker))
+            temp1[pn_cols.PEER_WEIGHTS] = pd.Series(temp1.index.get_level_values(0)).map(s).values
+            # temp1.loc[(slice(None), '0 year'), pn_cols.PEER_WEIGHTS] = self.config.get_peer_weights(target_ticker)
+            # temp2 = temp1.xs(axis=1, level=1) = 2
+            temp3 = self.comp_ratios.loc[self.comp_ratios.index.get_level_values(0).isin(self.config.companies.loc[target_ticker, pn_cols.PEER_LIST])]
+
             print('Here')
 
 
