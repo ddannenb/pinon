@@ -96,8 +96,7 @@ class Config:
         for c in eval_list:
             pc = companies.loc[companies.index.isin(companies.at[c, pn_cols.PEER_LIST])]
             pws = pc[pn_cols.WEIGHT] / pc[pn_cols.WEIGHT].sum()
-            companies.at[c, pn_cols.PEER_WEIGHTS] = pws.tolist()
-
+            companies.at[c, pn_cols.PEER_WEIGHTS] = pws
 
         return companies
 
