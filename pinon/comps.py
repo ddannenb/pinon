@@ -81,26 +81,18 @@ class Comps:
         self.comp_ratios = pd.DataFrame(columns=colx, index=ndx)
         for target_ticker in self.config.get_target_tickers():
             target_k = self.target_ks.loc[target_ticker]
-            self.comp_ratios.loc[(target_ticker,), ([pn_cols.QTR_PE_RATIO, pn_cols.TTM_PE_RATIO], pn_cols.UN_WTD_RATIOS)] = 1
-            temp = self.m.mu_multiples.loc[self.config.get_peer_list(target_ticker)].groupby(level=1, axis=0).mean()
-            temp1 = self.m.mu_multiples.loc[self.config.get_peer_list(target_ticker)]
-            # s = pd.Series(self.config.get_peer_weights(target_ticker), index=self.config.get_peer_list(target_ticker))
-            temp1[pn_cols.PEER_WEIGHTS] = pd.Series(temp1.index.get_level_values(0)).map(self.config.get_peer_weights(target_ticker)).values
-            temp1[pn_cols.K_QTR_PE] = target_k[pn_cols.K_TARGET_QTR_PE]
-            temp1[pn_cols.K_TTM_PE] = target_k[pn_cols.K_TARGET_TTM_PE]
+            crs = self.m.mu_multiples.loc[self.config.get_peer_list(target_ticker)]
+            crs[pn_cols.PEER_WEIGHTS] = pd.Series(crs.index.get_level_values(0)).map(self.config.get_peer_weights(target_ticker)).values
 
-            temp1[pn_cols.QTR_PE_RATIO_WTD] = temp1[pn_cols.MU_QTR_PE_RATIO] * temp1[pn_cols.PEER_WEIGHTS]
-            temp1[pn_cols.TTM_PE_RATIO_WTD] = temp1[pn_cols.MU_TTM_PE_RATIO] * temp1[pn_cols.PEER_WEIGHTS]
-            temp1[pn_cols.QTR_PE_RATIO_WTD_ADJ] = temp1[pn_cols.QTR_PE_RATIO_WTD] * target_k[pn_cols.K_TARGET_QTR_PE]
-            temp1[pn_cols.TTM_PE_RATIO_WTD_ADJ] = temp1[pn_cols.TTM_PE_RATIO_WTD] * target_k[pn_cols.K_TARGET_TTM_PE]
+            self.comp_ratios.loc[(target_ticker,), (pn_cols.QTR_PE_RATIO, pn_cols.UN_WTD_RATIOS)] = (crs[pn_cols.MU_QTR_PE_RATIO]).groupby(level=1).mean().values
+            self.comp_ratios.loc[(target_ticker,), (pn_cols.QTR_PE_RATIO, pn_cols.WTD_RATIOS)] = (crs[pn_cols.MU_QTR_PE_RATIO] * crs[pn_cols.PEER_WEIGHTS]).groupby(level=1).sum().values
+            self.comp_ratios.loc[(target_ticker,), (pn_cols.QTR_PE_RATIO, pn_cols.WTD_ADJ_RATIOS)] = (crs[pn_cols.MU_QTR_PE_RATIO] * crs[pn_cols.PEER_WEIGHTS] * target_k[pn_cols.K_TARGET_QTR_PE]).groupby(level=1).sum().values
 
-            res = temp1.loc[:, [pn_cols.QTR_PE_RATIO_WTD, pn_cols.TTM_PE_RATIO_WTD, pn_cols.QTR_PE_RATIO_WTD_ADJ, pn_cols.TTM_PE_RATIO_WTD_ADJ]].groupby(level=1).sum()
+            self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.UN_WTD_RATIOS)] = (crs[pn_cols.MU_TTM_PE_RATIO]).groupby(level=1).mean().values
+            self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.WTD_RATIOS)] = (crs[pn_cols.MU_TTM_PE_RATIO] * crs[pn_cols.PEER_WEIGHTS]).groupby(level=1).sum().values
+            self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.WTD_ADJ_RATIOS)] = (crs[pn_cols.MU_TTM_PE_RATIO] * crs[pn_cols.PEER_WEIGHTS] * target_k[pn_cols.K_TARGET_TTM_PE]).groupby(level=1).sum().values
 
-            # temp1.loc[(slice(None), '0 year'), pn_cols.PEER_WEIGHTS] = self.config.get_peer_weights(target_ticker)
-            # temp2 = temp1.xs(axis=1, level=1) = 2
-            temp3 = self.comp_ratios.loc[self.comp_ratios.index.get_level_values(0).isin(self.config.companies.loc[target_ticker, pn_cols.PEER_LIST])]
-
-            print('Here')
+        print('Here')
 
 
     def calc_fair_value(self):
