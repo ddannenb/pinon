@@ -92,8 +92,6 @@ class Comps:
             self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.WTD_RATIOS)] = (crs[pn_cols.MU_TTM_PE_RATIO] * crs[pn_cols.PEER_WEIGHTS]).groupby(level=1).sum().values
             self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.WTD_ADJ_RATIOS)] = (crs[pn_cols.MU_TTM_PE_RATIO] * crs[pn_cols.PEER_WEIGHTS] * target_k[pn_cols.K_TARGET_TTM_PE]).groupby(level=1).sum().values
 
-        print('Here')
-
 
     def calc_fair_value(self):
         if self.mu_multiples is None:
