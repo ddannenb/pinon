@@ -46,7 +46,7 @@ class Config:
         return breaking_reports
 
     def parse_forecasts(self, sheet_name):
-        forecasts = pd.DataFrame(columns=[pn_cols.TICKER, pn_cols.REPORT_DATE, pn_cols.EPS_FORECAST, pn_cols.REVENUE_FORECAST])
+        forecasts = pd.DataFrame(columns=[pn_cols.TICKER, pn_cols.REPORT_DATE, pn_cols.EPS_FORECAST, pn_cols.REVENUE_FORECAST, pn_cols.DIVIDEND_FORECAST])
         forecasts = pd.read_excel(self.config_path, sheet_name=sheet_name, header=46)
         forecasts.set_index([pn_cols.TICKER, pn_cols.REPORT_DATE], inplace=True)
 

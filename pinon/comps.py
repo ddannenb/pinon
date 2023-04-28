@@ -2,6 +2,7 @@ import pandas as pd
 
 import pinon as pn
 import names as pn_cols
+from datetime import date
 
 class Comps:
     def __init__(self, config):
@@ -9,9 +10,9 @@ class Comps:
         self.all_ks = None
         self.peer_ks = None
         self.target_ks = None
-        self.multiples = None
         self.comp_ratios = None
-        self.m = pn.Multiples(config)
+        self.fair_value = None
+        self.multiples = pn.Multiples(config)
 
     def run(self):
         self.run_variations()
@@ -20,16 +21,16 @@ class Comps:
         self.calc_present_comp_ratios()
 
     def run_variations(self):
-        if self.multiples is None:
-            self.multiples = self.m.run_multiples()
+        if self.multiples.price_ratios is None:
+            self.multiples.run_price_ratios()
 
         self.all_ks = None
         for target_ticker, company in self.config.companies.iterrows():
             if company[pn_cols.EVALUATE]:
                 peer_list = company[pn_cols.PEER_LIST]
-                target_multiples = self.multiples.loc[target_ticker]
+                target_multiples = self.multiples.price_ratios.loc[target_ticker]
                 for peer_ticker in peer_list:
-                    peer_multiples = self.multiples.loc[peer_ticker]
+                    peer_multiples = self.multiples.price_ratios.loc[peer_ticker]
                     k_pe = pd.DataFrame(columns=[pn_cols.TARGET_TICKER, pn_cols.PEER_TICKER, pn_cols.K_QTR_PE, pn_cols.K_TTM_PE])
                     k_pe.loc[:, pn_cols.K_TTM_PE] = target_multiples[pn_cols.TTM_PE_RATIO] / peer_multiples[pn_cols.TTM_PE_RATIO]
                     k_pe.loc[:, pn_cols.K_QTR_PE] = target_multiples[pn_cols.QTR_PE_RATIO] / peer_multiples[pn_cols.QTR_PE_RATIO]
@@ -75,13 +76,14 @@ class Comps:
         self.target_ks.set_index([pn_cols.TARGET_TICKER], inplace=True)
 
     def calc_present_comp_ratios(self):
-        ndx = pd.MultiIndex.from_product([self.target_ks.index.to_list(), pn_cols.MU_TIME_LIST])
+        ndx = pd.MultiIndex.from_product([self.config.get_target_tickers(), pn_cols.MU_TIME_LIST])
         ndx.names = [pn_cols.TARGET_TICKER, pn_cols.MU_TIME]
         colx = pd.MultiIndex.from_product([[pn_cols.QTR_PE_RATIO, pn_cols.TTM_PE_RATIO], [pn_cols.UN_WTD_RATIOS, pn_cols.WTD_RATIOS, pn_cols.WTD_ADJ_RATIOS]])
         self.comp_ratios = pd.DataFrame(columns=colx, index=ndx)
+        self.comp_ratios.sort_index(inplace=True)
         for target_ticker in self.config.get_target_tickers():
             target_k = self.target_ks.loc[target_ticker]
-            crs = self.m.mu_multiples.loc[self.config.get_peer_list(target_ticker)]
+            crs = self.multiples.mu_price_ratios.loc[self.config.get_peer_list(target_ticker)]
             crs[pn_cols.PEER_WEIGHTS] = pd.Series(crs.index.get_level_values(0)).map(self.config.get_peer_weights(target_ticker)).values
 
             self.comp_ratios.loc[(target_ticker,), (pn_cols.QTR_PE_RATIO, pn_cols.UN_WTD_RATIOS)] = (crs[pn_cols.MU_QTR_PE_RATIO]).groupby(level=1).mean().values
@@ -94,7 +96,22 @@ class Comps:
 
 
     def calc_fair_value(self):
-        if self.mu_multiples is None:
-            self.run_mu_multiples()
+        previous_qtr = pd.to_datetime(date.today()) - pd.tseries.offsets.QuarterEnd()
+        ndx = pd.MultiIndex.from_product([self.config.get_target_tickers(), pn_cols.MU_TIME_LIST])
+        ndx.names = [pn_cols.TARGET_TICKER, pn_cols.MU_TIME]
+        cols_ndx = self.config.forecasts.index.unique(level=1).union(pd.Index([previous_qtr]))
+        colx = pd.MultiIndex.from_product([[pn_cols.QTR_PE_FV, pn_cols.TTM_PE_FV], cols_ndx])
+        self.fair_value = pd.DataFrame(columns=colx, index=ndx)
+
+        for target_ticker in self.config.get_target_tickers():
+            if previous_qtr in self.multiples.price_ratios.loc[target_ticker].index:
+                previous_qtr_eps = self.multiples.price_ratios.loc[(target_ticker, previous_qtr), pn_cols.TTM_EPS]
+                pe = self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.WTD_ADJ_RATIOS)]
+                self.fair_value.loc[(target_ticker, ), (pn_cols.TTM_PE_FV, previous_qtr)] = (previous_qtr_eps * pe).values
+
+        print('Break')
+
+
+
 
 

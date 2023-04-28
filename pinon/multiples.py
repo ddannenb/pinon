@@ -11,20 +11,20 @@ class Multiples:
     def __init__(self, config):
         # self.ticker = ticker
         self.config = config
-        self.multiples = None
-        self.mu_multiples = None
+        self.price_ratios = None
+        self.mu_price_ratios = None
         self.daily_prices = DailyPrices()
         self.fundamentals = Fundamentals()
 
-    def run_multiples(self):
-        self.init_multiples()
+    def run_price_ratios(self):
+        self.init_price_ratios()
         self.calc_quarterly_pe()
         # TODO additional multiple calc go here
-        self.run_mu_multiples()
-        return self.multiples
+        self.run_mu_price_ratios()
+        return self.price_ratios
 
-    def init_multiples(self):
-        self.multiples = None
+    def init_price_ratios(self):
+        self.price_ratios = None
 
         for ticker in self.config.companies.index:
             inc = self.fundamentals.get_quarterly_income_statement(ticker)
@@ -50,17 +50,17 @@ class Multiples:
             df.index.name = pn_cols.REPORT_DATE
             df[pn_cols.MU_QTR_PRICE] = dp[sf_cols.CLOSE]
             df[pn_cols.TICKER] = ticker
-            self.multiples = df if self.multiples is None else pd.concat([self.multiples, df])
+            self.price_ratios = df if self.price_ratios is None else pd.concat([self.price_ratios, df])
 
-        self.multiples.reset_index(inplace=True)
-        self.multiples.set_index([pn_cols.TICKER, pn_cols.REPORT_DATE], inplace=True)
-        self.multiples.sort_index(inplace=True)
+        self.price_ratios.reset_index(inplace=True)
+        self.price_ratios.set_index([pn_cols.TICKER, pn_cols.REPORT_DATE], inplace=True)
+        self.price_ratios.sort_index(inplace=True)
 
     def calc_quarterly_pe(self):
         for ticker in self.config.companies.index:
             inc = self.fundamentals.get_quarterly_income_statement(ticker)
             dp = self.daily_prices.get_downsampled_prices(ticker)
-            pe = pd.DataFrame(index=self.multiples.loc[ticker].index, columns=PE_COLS)
+            pe = pd.DataFrame(index=self.price_ratios.loc[ticker].index, columns=PE_COLS)
 
             pe[pn_cols.QTR_EPS] = inc[sf_cols.NET_INCOME] / inc[sf_cols.SHARES_DILUTED]
             br = self.config.get_breaking_report(ticker)
@@ -70,27 +70,27 @@ class Multiples:
             pe[pn_cols.QTR_PE_RATIO] = dp[sf_cols.CLOSE] / pe[pn_cols.QTR_EPS] / 4
             pe[pn_cols.TTM_PE_RATIO] = dp[sf_cols.CLOSE] / pe[pn_cols.TTM_EPS]
 
-            self.multiples.loc[(ticker, ), PE_COLS] = pe.values
+            self.price_ratios.loc[(ticker,), PE_COLS] = pe.values
 
-    def run_mu_multiples(self):
-        self.mu_multiples = None
+    def run_mu_price_ratios(self):
+        self.mu_price_ratios = None
 
-        if self.multiples is None:
-            self.run_multiples()
+        if self.price_ratios is None:
+            self.run_price_ratios()
 
         for ticker in self.config.companies.index:
             mm = pd.DataFrame(columns=[pn_cols.TICKER, pn_cols.MU_QTR_PE_RATIO, pn_cols.MU_TTM_PE_RATIO], index=['0 year', '1 year', '3 year', '5 year'])
             mm.index.name = pn_cols.MU_TIME
 
-            mm.loc[('0 year'), [pn_cols.MU_QTR_PE_RATIO, pn_cols.MU_TTM_PE_RATIO]] = [self.multiples.loc[(ticker,), pn_cols.QTR_PE_RATIO].tail(1).mean(), self.multiples.loc[(ticker,), pn_cols.TTM_PE_RATIO].tail(1).mean()]
-            mm.loc[('1 year'), [pn_cols.MU_QTR_PE_RATIO, pn_cols.MU_TTM_PE_RATIO]] = [self.multiples.loc[(ticker,), pn_cols.QTR_PE_RATIO].tail(4).mean(), self.multiples.loc[(ticker,), pn_cols.TTM_PE_RATIO].tail(4).mean()]
-            mm.loc[('3 year'), [pn_cols.MU_QTR_PE_RATIO, pn_cols.MU_TTM_PE_RATIO]] = [self.multiples.loc[(ticker,), pn_cols.QTR_PE_RATIO].tail(12).mean(), self.multiples.loc[(ticker,), pn_cols.TTM_PE_RATIO].tail(12).mean()]
-            mm.loc[('5 year'), [pn_cols.MU_QTR_PE_RATIO, pn_cols.MU_TTM_PE_RATIO]] = [self.multiples.loc[(ticker,), pn_cols.QTR_PE_RATIO].tail(20).mean(), self.multiples.loc[(ticker,), pn_cols.TTM_PE_RATIO].tail(20).mean()]
+            mm.loc[('0 year'), [pn_cols.MU_QTR_PE_RATIO, pn_cols.MU_TTM_PE_RATIO]] = [self.price_ratios.loc[(ticker,), pn_cols.QTR_PE_RATIO].tail(1).mean(), self.price_ratios.loc[(ticker,), pn_cols.TTM_PE_RATIO].tail(1).mean()]
+            mm.loc[('1 year'), [pn_cols.MU_QTR_PE_RATIO, pn_cols.MU_TTM_PE_RATIO]] = [self.price_ratios.loc[(ticker,), pn_cols.QTR_PE_RATIO].tail(4).mean(), self.price_ratios.loc[(ticker,), pn_cols.TTM_PE_RATIO].tail(4).mean()]
+            mm.loc[('3 year'), [pn_cols.MU_QTR_PE_RATIO, pn_cols.MU_TTM_PE_RATIO]] = [self.price_ratios.loc[(ticker,), pn_cols.QTR_PE_RATIO].tail(12).mean(), self.price_ratios.loc[(ticker,), pn_cols.TTM_PE_RATIO].tail(12).mean()]
+            mm.loc[('5 year'), [pn_cols.MU_QTR_PE_RATIO, pn_cols.MU_TTM_PE_RATIO]] = [self.price_ratios.loc[(ticker,), pn_cols.QTR_PE_RATIO].tail(20).mean(), self.price_ratios.loc[(ticker,), pn_cols.TTM_PE_RATIO].tail(20).mean()]
 
             mm.loc[:, pn_cols.TICKER] = ticker
 
-            self.mu_multiples = mm if self.mu_multiples is None else pd.concat([self.mu_multiples, mm])
+            self.mu_price_ratios = mm if self.mu_price_ratios is None else pd.concat([self.mu_price_ratios, mm])
 
-        self.mu_multiples.reset_index(inplace=True)
-        self.mu_multiples.set_index([pn_cols.TICKER, pn_cols.MU_TIME], inplace=True)
-        self.mu_multiples.sort_index(inplace=True)
+        self.mu_price_ratios.reset_index(inplace=True)
+        self.mu_price_ratios.set_index([pn_cols.TICKER, pn_cols.MU_TIME], inplace=True)
+        self.mu_price_ratios.sort_index(inplace=True)
