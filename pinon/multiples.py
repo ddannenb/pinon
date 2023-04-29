@@ -80,7 +80,7 @@ class Multiples:
 
         for ticker in self.config.companies.index:
             mm = pd.DataFrame(columns=[pn_cols.TICKER, pn_cols.MU_QTR_PE_RATIO, pn_cols.MU_TTM_PE_RATIO], index=['0 year', '1 year', '3 year', '5 year'])
-            mm.index.name = pn_cols.MU_TIME
+            mm.index.name = pn_cols.TIME_AVG
 
             mm.loc[('0 year'), [pn_cols.MU_QTR_PE_RATIO, pn_cols.MU_TTM_PE_RATIO]] = [self.price_ratios.loc[(ticker,), pn_cols.QTR_PE_RATIO].tail(1).mean(), self.price_ratios.loc[(ticker,), pn_cols.TTM_PE_RATIO].tail(1).mean()]
             mm.loc[('1 year'), [pn_cols.MU_QTR_PE_RATIO, pn_cols.MU_TTM_PE_RATIO]] = [self.price_ratios.loc[(ticker,), pn_cols.QTR_PE_RATIO].tail(4).mean(), self.price_ratios.loc[(ticker,), pn_cols.TTM_PE_RATIO].tail(4).mean()]
@@ -92,5 +92,5 @@ class Multiples:
             self.mu_price_ratios = mm if self.mu_price_ratios is None else pd.concat([self.mu_price_ratios, mm])
 
         self.mu_price_ratios.reset_index(inplace=True)
-        self.mu_price_ratios.set_index([pn_cols.TICKER, pn_cols.MU_TIME], inplace=True)
+        self.mu_price_ratios.set_index([pn_cols.TICKER, pn_cols.TIME_AVG], inplace=True)
         self.mu_price_ratios.sort_index(inplace=True)

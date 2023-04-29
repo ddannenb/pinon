@@ -35,7 +35,6 @@ class Config:
         self.companies = self.parse_target_sheet(self.target_sheet_name, self.past_years_requested)
         self.breaking_reports = self.parse_breaking_reports(self.target_sheet_name)
         self.forecasts = self.parse_forecasts(self.target_sheet_name)
-        print('Here')
 
     def parse_breaking_reports(self, sheet_name):
         breaking_reports = pd.DataFrame(columns=[pn_cols.TICKER, pn_cols.REPORT_DATE, pn_cols.EPS_BREAKING, pn_cols.REVENUE_BREAKING])
