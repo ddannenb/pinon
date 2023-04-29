@@ -17,12 +17,12 @@ class Comps:
         self.multiples = pn.Multiples(config)
 
     def run(self):
-        self.run_variations()
+        self.run_all_ks()
         self.run_peer_ks()
         self.run_target_ks()
         self.calc_present_comp_ratios()
 
-    def run_variations(self):
+    def run_all_ks(self):
         if self.multiples.price_ratios is None:
             self.multiples.run_price_ratios()
 
@@ -45,7 +45,7 @@ class Comps:
     def run_peer_ks(self):
         self.peer_ks = None
         if self.all_ks is None:
-            self.run_variations()
+            self.run_all_ks()
 
         for target_ticker in self.config.get_target_tickers():
             target_ks = self.all_ks.loc[target_ticker]
@@ -53,72 +53,46 @@ class Comps:
 
             for peer_ticker, peer_ks in target_ks.groupby(level=pn_cols.PEER_TICKER):
                 peer_k = pd.DataFrame(index=pd.Index([t[1] for t in pn_cols.TIME_AVG_LIST]), columns=[pn_cols.TARGET_TICKER, pn_cols.PEER_TICKER, pn_cols.K_PEER_QTR_PE, pn_cols.K_PEER_TTM_PE, pn_cols.PEER_WEIGHTS])
+                peer_k.index.name = pn_cols.TIME_AVG
                 peer_k[pn_cols.TARGET_TICKER] = target_ticker
                 peer_k[pn_cols.PEER_TICKER] = peer_ticker
                 peer_k[pn_cols.PEER_WEIGHTS] = peer_weights[peer_ticker]
 
-                for (num_yrs, ndx) in pn_cols.TIME_AVG_LIST:
-                    # Drop NaN and remove outliers outside of 2.0 sigma
-                    pk_qtr_pe = peer_ks.loc[:, pn_cols.K_QTR_PE].dropna()
-                    pk_ttm_pe = peer_ks.loc[:, pn_cols.K_TTM_PE].dropna()
-                    m_qtr_pe = np.abs(stats.zscore((pk_qtr_pe *10000).astype('int'))) <= 2.0
-                    m_ttm_pe = np.abs(stats.zscore((pk_ttm_pe *10000).astype('int'))) <= 2.0
-                    pk_qtr_pe_clean = pk_qtr_pe[m_qtr_pe]
-                    pk_ttm_pe_clean = pk_ttm_pe[m_ttm_pe]
+                # Drop NaN and remove outliers outside of 2.0 sigma
+                pks_qtr_pe_no_nans = peer_ks.loc[:, pn_cols.K_QTR_PE].dropna()
+                pks_ttm_pe_no_nans = peer_ks.loc[:, pn_cols.K_TTM_PE].dropna()
+                m_pks_qtr_pe = np.abs(stats.zscore((pks_qtr_pe_no_nans *10000).astype('int'))) <= 2.0
+                m_pks_ttm_pe = np.abs(stats.zscore((pks_ttm_pe_no_nans *10000).astype('int'))) <= 2.0
+                pks_qtr_pe_clean = pks_qtr_pe_no_nans[m_pks_qtr_pe]
+                pks_ttm_pe_clean = pks_ttm_pe_no_nans[m_pks_ttm_pe]
 
+                for (num_yrs, ta_ndx) in pn_cols.TIME_AVG_LIST:
+
+                    pks = None
                     if num_yrs == 0:
                         # 0 year - use the most recent calculated K value
-                        peer_k.loc[pn_cols.TIME_AVG_0_YEAR, [pn_cols.K_PEER_QTR_PE, pn_cols.K_PEER_TTM_PE]] = [pk_qtr_pe_clean.tail(1).values[0], pk_ttm_pe_clean.tail(1).values[0]]
+                        pks = [pks_qtr_pe_clean.tail(1).squeeze(), pks_ttm_pe_clean.tail(1).squeeze()]
 
                     elif num_yrs == -1:
                         # max years
-                        peer_k.loc[pn_cols.TIME_AVG_MAX_YEAR, [pn_cols.K_PEER_QTR_PE, pn_cols.K_PEER_TTM_PE]] = [pk_qtr_pe_clean.mean(), pk_ttm_pe_clean.mean()]
+                        pks = [pks_qtr_pe_clean.mean(), pks_ttm_pe_clean.mean()]
 
                     else:
                         # range of years
                         end_qtr = pd.to_datetime(date.today()) - pd.tseries.offsets.QuarterEnd()
                         start_qtr = end_qtr - pd.DateOffset(years=num_yrs)
-                        m_qtr_pe_range = ((pk_qtr_pe_clean.index.get_level_values(level=pn_cols.REPORT_DATE) > start_qtr) & (pk_qtr_pe_clean.index.get_level_values(level=pn_cols.REPORT_DATE) <= end_qtr))
-                        pk_qtr_pe_clean_range = pk_qtr_pe_clean[m_qtr_pe_range]
+                        m_pks_qtr_pe_range = ((pks_qtr_pe_clean.index.get_level_values(level=pn_cols.REPORT_DATE) > start_qtr) & (pks_qtr_pe_clean.index.get_level_values(level=pn_cols.REPORT_DATE) <= end_qtr))
+                        m_pks_ttm_pe_range = ((pks_ttm_pe_clean.index.get_level_values(level=pn_cols.REPORT_DATE) > start_qtr) & (pks_ttm_pe_clean.index.get_level_values(level=pn_cols.REPORT_DATE) <= end_qtr))
+                        pks_qtr_pe_clean_range = pks_qtr_pe_clean[m_pks_qtr_pe_range]
+                        pks_ttm_pe_clean_range = pks_ttm_pe_clean[m_pks_ttm_pe_range]
+                        pks = [pks_qtr_pe_clean_range.mean(), pks_ttm_pe_clean_range.mean()]
 
-
-                pk_clean = peer_ks.loc[:, pn_cols.K_TTM_PE].dropna()
-                pk_zin = (pk_clean * 10000).astype('int')
-                pk_z = stats.zscore(pk_zin)
-                m = np.abs(pk_z) <= 2
-                pk_np_outs = pk_clean[m]
-
-    def run_peer_ks_old(self):
-        self.peer_ks = None
-        if self.all_ks is None:
-            self.run_variations()
-
-        for target_ticker, target_ks in self.all_ks.groupby(level=pn_cols.TARGET_TICKER):
-            m = self.config.companies.index.isin(self.config.companies.loc[target_ticker][pn_cols.PEER_LIST])
-            sum_peer_weights = self.config.companies.loc[m][pn_cols.WEIGHT].sum()
-            for peer_ticker, peer_ks in target_ks.groupby(level=pn_cols.PEER_TICKER):
-
-                pk_clean = peer_ks.loc[:, pn_cols.K_TTM_PE].dropna()
-                pk_zin = (pk_clean * 10000).astype('int')
-                pk_z = stats.zscore(pk_zin)
-                m = np.abs(pk_z) <= 2
-                pk_np_outs = pk_clean[m]
-
-                end_qtr = pd.to_datetime(date.today()) - pd.tseries.offsets.QuarterEnd()
-                start_qtr = end_qtr - pd.DateOffset(years=2)
-                m1 = ((pk_np_outs.index.get_level_values(level=pn_cols.REPORT_DATE) >= start_qtr) & (pk_np_outs.index.get_level_values(level=pn_cols.REPORT_DATE) <= end_qtr))
-                pk = pk_np_outs[m1]
-
-                peer_k = pd.DataFrame(columns=[pn_cols.TARGET_TICKER, pn_cols.PEER_TICKER, pn_cols.K_PEER_QTR_PE, pn_cols.K_PEER_TTM_PE, pn_cols.K_PEER_WEIGHT])
-                k_peer_qtr_pe = peer_ks[pn_cols.K_QTR_PE].mean()
-                k_peer_ttm_qtr_pe = peer_ks[pn_cols.K_TTM_PE].mean()
-
-                k_peer_weight = self.config.companies.loc[peer_ticker][pn_cols.WEIGHT] / sum_peer_weights
-                peer_k.loc[len(peer_k.index)] = [target_ticker, peer_ticker, k_peer_qtr_pe, k_peer_ttm_qtr_pe, k_peer_weight]
+                    peer_k.loc[ta_ndx, [pn_cols.K_PEER_QTR_PE, pn_cols.K_PEER_TTM_PE]] = pks
 
                 self.peer_ks = peer_k if self.peer_ks is None else pd.concat([self.peer_ks, peer_k])
-        self.peer_ks.reset_index(inplace=True, drop=True)
-        self.peer_ks.set_index([pn_cols.TARGET_TICKER, pn_cols.PEER_TICKER], inplace=True)
+
+        self.peer_ks.reset_index(inplace=True, drop=False)
+        self.peer_ks.set_index([pn_cols.TARGET_TICKER, pn_cols.PEER_TICKER, pn_cols.TIME_AVG], inplace=True)
 
     def run_target_ks(self):
         self.target_ks = None
