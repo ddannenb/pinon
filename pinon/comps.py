@@ -100,13 +100,13 @@ class Comps:
             self.run_peer_ks()
 
         for target_ticker, peer_ks in self.peer_ks.groupby(level=pn_cols.TARGET_TICKER):
-            target_k = pd.DataFrame(columns=[pn_cols.TARGET_TICKER, pn_cols.K_TARGET_QTR_PE, pn_cols.K_TARGET_TTM_PE])
-            k_target_qtr_pe = (peer_ks[pn_cols.K_PEER_QTR_PE] * peer_ks[pn_cols.K_PEER_WEIGHT]).sum()
-            k_target_qtr_ttm_pe = (peer_ks[pn_cols.K_PEER_TTM_PE] * peer_ks[pn_cols.K_PEER_WEIGHT]).sum()
-            target_k.loc[len(target_k.index)] = [target_ticker, k_target_qtr_pe, k_target_qtr_ttm_pe]
+            peer_ks_weighted = peer_ks[[pn_cols.K_PEER_QTR_PE, pn_cols.K_PEER_TTM_PE]].multiply(peer_ks[pn_cols.PEER_WEIGHTS], axis='index')
+            target_k = peer_ks_weighted.groupby(level=pn_cols.TIME_AVG, sort=False).sum()
+            target_k[pn_cols.TARGET_TICKER] = target_ticker
             self.target_ks = target_k if self.target_ks is None else pd.concat([self.target_ks, target_k])
-        self.target_ks.reset_index(inplace=True, drop=True)
-        self.target_ks.set_index([pn_cols.TARGET_TICKER], inplace=True)
+
+        self.target_ks.reset_index(inplace=True, drop=False)
+        self.target_ks.set_index([pn_cols.TARGET_TICKER, pn_cols.TIME_AVG], inplace=True)
 
     def calc_present_comp_ratios(self):
         ndx = pd.MultiIndex.from_product([self.config.get_target_tickers(), pn_cols.MU_TIME_LIST])
