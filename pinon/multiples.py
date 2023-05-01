@@ -79,16 +79,23 @@ class Multiples:
             self.run_price_ratios()
 
         for ticker in self.config.companies.index:
-            mm = pd.DataFrame(columns=[pn_cols.TICKER, pn_cols.MU_QTR_PE_RATIO, pn_cols.MU_TTM_PE_RATIO], index=['0 year', '1 year', '3 year', '5 year'])
+            mm = pd.DataFrame(columns=[pn_cols.TICKER, pn_cols.MU_QTR_PE_RATIO, pn_cols.MU_TTM_PE_RATIO], index=pd.Index([t[1] for t in pn_cols.TIME_AVG_LIST]))
             mm.index.name = pn_cols.TIME_AVG
 
-            mm.loc[('0 year'), [pn_cols.MU_QTR_PE_RATIO, pn_cols.MU_TTM_PE_RATIO]] = [self.price_ratios.loc[(ticker,), pn_cols.QTR_PE_RATIO].tail(1).mean(), self.price_ratios.loc[(ticker,), pn_cols.TTM_PE_RATIO].tail(1).mean()]
-            mm.loc[('1 year'), [pn_cols.MU_QTR_PE_RATIO, pn_cols.MU_TTM_PE_RATIO]] = [self.price_ratios.loc[(ticker,), pn_cols.QTR_PE_RATIO].tail(4).mean(), self.price_ratios.loc[(ticker,), pn_cols.TTM_PE_RATIO].tail(4).mean()]
-            mm.loc[('3 year'), [pn_cols.MU_QTR_PE_RATIO, pn_cols.MU_TTM_PE_RATIO]] = [self.price_ratios.loc[(ticker,), pn_cols.QTR_PE_RATIO].tail(12).mean(), self.price_ratios.loc[(ticker,), pn_cols.TTM_PE_RATIO].tail(12).mean()]
-            mm.loc[('5 year'), [pn_cols.MU_QTR_PE_RATIO, pn_cols.MU_TTM_PE_RATIO]] = [self.price_ratios.loc[(ticker,), pn_cols.QTR_PE_RATIO].tail(20).mean(), self.price_ratios.loc[(ticker,), pn_cols.TTM_PE_RATIO].tail(20).mean()]
+            mpr = None
+            for (num_yrs, ta_ndx) in pn_cols.TIME_AVG_LIST:
+                if num_yrs == 0:
+                    mpr = [self.price_ratios.loc[(ticker,), pn_cols.QTR_PE_RATIO].tail(1).squeeze(), self.price_ratios.loc[(ticker,), pn_cols.TTM_PE_RATIO].tail(1).squeeze()]
+
+                elif num_yrs == -1:
+                    mpr = [self.price_ratios.loc[(ticker,), pn_cols.QTR_PE_RATIO].mean(), self.price_ratios.loc[(ticker,), pn_cols.TTM_PE_RATIO].mean()]
+
+                else:
+                    mpr = [self.price_ratios.loc[(ticker,), pn_cols.QTR_PE_RATIO].tail(4*num_yrs).mean(), self.price_ratios.loc[(ticker,), pn_cols.TTM_PE_RATIO].tail(4*num_yrs).mean()]
+
+                mm.loc[ta_ndx, [pn_cols.MU_QTR_PE_RATIO, pn_cols.MU_TTM_PE_RATIO]] = mpr
 
             mm.loc[:, pn_cols.TICKER] = ticker
-
             self.mu_price_ratios = mm if self.mu_price_ratios is None else pd.concat([self.mu_price_ratios, mm])
 
         self.mu_price_ratios.reset_index(inplace=True)

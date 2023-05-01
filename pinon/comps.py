@@ -109,7 +109,7 @@ class Comps:
         self.target_ks.set_index([pn_cols.TARGET_TICKER, pn_cols.TIME_AVG], inplace=True)
 
     def calc_present_comp_ratios(self):
-        ndx = pd.MultiIndex.from_product([self.config.get_target_tickers(), pn_cols.MU_TIME_LIST])
+        ndx = pd.MultiIndex.from_product([self.config.get_target_tickers(), [t[1] for t in pn_cols.TIME_AVG_LIST]])
         ndx.names = [pn_cols.TARGET_TICKER, pn_cols.TIME_AVG]
         colx = pd.MultiIndex.from_product([[pn_cols.QTR_PE_RATIO, pn_cols.TTM_PE_RATIO], [pn_cols.UN_WTD_RATIOS, pn_cols.WTD_RATIOS, pn_cols.WTD_ADJ_RATIOS]])
         self.comp_ratios = pd.DataFrame(columns=colx, index=ndx)
@@ -130,7 +130,7 @@ class Comps:
 
     def calc_fair_value(self):
         previous_qtr = pd.to_datetime(date.today()) - pd.tseries.offsets.QuarterEnd()
-        ndx = pd.MultiIndex.from_product([self.config.get_target_tickers(), pn_cols.MU_TIME_LIST])
+        ndx = pd.MultiIndex.from_product([self.config.get_target_tickers(), [t[1] for t in pn_cols.TIME_AVG_LIST]])
         ndx.names = [pn_cols.TARGET_TICKER, pn_cols.TIME_AVG]
         cols_ndx = self.config.forecasts.index.unique(level=1).union(pd.Index([previous_qtr]))
         colx = pd.MultiIndex.from_product([[pn_cols.QTR_PE_FV, pn_cols.TTM_PE_FV], cols_ndx])
