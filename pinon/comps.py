@@ -52,7 +52,7 @@ class Comps:
             peer_weights = self.config.get_peer_weights(target_ticker)
 
             for peer_ticker, peer_ks in target_ks.groupby(level=pn_cols.PEER_TICKER):
-                peer_k = pd.DataFrame(index=pd.Index([t[1] for t in pn_cols.TIME_AVG_LIST]), columns=[pn_cols.TARGET_TICKER, pn_cols.PEER_TICKER, pn_cols.K_PEER_QTR_PE, pn_cols.K_PEER_TTM_PE, pn_cols.PEER_WEIGHTS])
+                peer_k = pd.DataFrame(index=pd.Index([t[1] for t in pn_cols.TIME_AVG_LIST]), columns=[pn_cols.TARGET_TICKER, pn_cols.PEER_TICKER, pn_cols.K_QTR_PE, pn_cols.K_TTM_PE, pn_cols.PEER_WEIGHTS])
                 peer_k.index.name = pn_cols.TIME_AVG
                 peer_k[pn_cols.TARGET_TICKER] = target_ticker
                 peer_k[pn_cols.PEER_TICKER] = peer_ticker
@@ -87,7 +87,7 @@ class Comps:
                         pks_ttm_pe_clean_range = pks_ttm_pe_clean[m_pks_ttm_pe_range]
                         pks = [pks_qtr_pe_clean_range.mean(), pks_ttm_pe_clean_range.mean()]
 
-                    peer_k.loc[ta_ndx, [pn_cols.K_PEER_QTR_PE, pn_cols.K_PEER_TTM_PE]] = pks
+                    peer_k.loc[ta_ndx, [pn_cols.K_QTR_PE, pn_cols.K_TTM_PE]] = pks
 
                 self.peer_ks = peer_k if self.peer_ks is None else pd.concat([self.peer_ks, peer_k])
 
@@ -100,7 +100,7 @@ class Comps:
             self.run_peer_ks()
 
         for target_ticker, peer_ks in self.peer_ks.groupby(level=pn_cols.TARGET_TICKER):
-            peer_ks_weighted = peer_ks[[pn_cols.K_PEER_QTR_PE, pn_cols.K_PEER_TTM_PE]].multiply(peer_ks[pn_cols.PEER_WEIGHTS], axis='index')
+            peer_ks_weighted = peer_ks[[pn_cols.K_QTR_PE, pn_cols.K_TTM_PE]].multiply(peer_ks[pn_cols.PEER_WEIGHTS], axis='index')
             target_k = peer_ks_weighted.groupby(level=pn_cols.TIME_AVG, sort=False).sum()
             target_k[pn_cols.TARGET_TICKER] = target_ticker
             self.target_ks = target_k if self.target_ks is None else pd.concat([self.target_ks, target_k])
@@ -121,11 +121,11 @@ class Comps:
 
             self.comp_ratios.loc[(target_ticker,), (pn_cols.QTR_PE_RATIO, pn_cols.UN_WTD_RATIOS)] = (crs[pn_cols.MU_QTR_PE_RATIO]).groupby(level=1).mean().values
             self.comp_ratios.loc[(target_ticker,), (pn_cols.QTR_PE_RATIO, pn_cols.WTD_RATIOS)] = (crs[pn_cols.MU_QTR_PE_RATIO] * crs[pn_cols.PEER_WEIGHTS]).groupby(level=1).sum().values
-            self.comp_ratios.loc[(target_ticker,), (pn_cols.QTR_PE_RATIO, pn_cols.WTD_ADJ_RATIOS)] = (crs[pn_cols.MU_QTR_PE_RATIO] * crs[pn_cols.PEER_WEIGHTS] * target_k[pn_cols.K_TARGET_QTR_PE]).groupby(level=1).sum().values
+            self.comp_ratios.loc[(target_ticker,), (pn_cols.QTR_PE_RATIO, pn_cols.WTD_ADJ_RATIOS)] = (crs[pn_cols.MU_QTR_PE_RATIO] * crs[pn_cols.PEER_WEIGHTS] * target_k[pn_cols.K_QTR_PE]).groupby(level=1).sum().values
 
             self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.UN_WTD_RATIOS)] = (crs[pn_cols.MU_TTM_PE_RATIO]).groupby(level=1).mean().values
             self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.WTD_RATIOS)] = (crs[pn_cols.MU_TTM_PE_RATIO] * crs[pn_cols.PEER_WEIGHTS]).groupby(level=1).sum().values
-            self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.WTD_ADJ_RATIOS)] = (crs[pn_cols.MU_TTM_PE_RATIO] * crs[pn_cols.PEER_WEIGHTS] * target_k[pn_cols.K_TARGET_TTM_PE]).groupby(level=1).sum().values
+            self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.WTD_ADJ_RATIOS)] = (crs[pn_cols.MU_TTM_PE_RATIO] * crs[pn_cols.PEER_WEIGHTS] * target_k[pn_cols.K_TTM_PE]).groupby(level=1).sum().values
 
 
     def calc_fair_value(self):
