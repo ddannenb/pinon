@@ -111,38 +111,50 @@ class Comps:
     def calc_present_comp_ratios(self):
         ndx = pd.MultiIndex.from_product([self.config.get_target_tickers(), [t[1] for t in pn_cols.TIME_AVG_LIST]])
         ndx.names = [pn_cols.TARGET_TICKER, pn_cols.TIME_AVG]
-        colx = pd.MultiIndex.from_product([[pn_cols.QTR_PE_RATIO, pn_cols.TTM_PE_RATIO], [pn_cols.UN_WTD_RATIOS, pn_cols.WTD_RATIOS, pn_cols.WTD_ADJ_RATIOS]])
+        colx = pd.MultiIndex.from_product([[pn_cols.QTR_PE_RATIO, pn_cols.TTM_PE_RATIO], [pn_cols.TARGET_RATIOS, pn_cols.UN_WTD_RATIOS, pn_cols.WTD_RATIOS, pn_cols.WTD_ADJ_RATIOS]])
         self.comp_ratios = pd.DataFrame(columns=colx, index=ndx)
         self.comp_ratios.sort_index(inplace=True)
         for target_ticker in self.config.get_target_tickers():
-            target_k = self.target_ks.loc[target_ticker]
+            # Note: use the k value obtained from maximum history
+            target_k = self.target_ks.loc[(target_ticker, pn_cols.TIME_AVG_MAX_YEAR)]
             crs = self.multiples.mu_price_ratios.loc[self.config.get_peer_list(target_ticker)]
             crs[pn_cols.PEER_WEIGHTS] = pd.Series(crs.index.get_level_values(0)).map(self.config.get_peer_weights(target_ticker)).values
 
             self.comp_ratios.loc[(target_ticker,), (pn_cols.QTR_PE_RATIO, pn_cols.UN_WTD_RATIOS)] = (crs[pn_cols.MU_QTR_PE_RATIO]).groupby(level=1).mean().values
             self.comp_ratios.loc[(target_ticker,), (pn_cols.QTR_PE_RATIO, pn_cols.WTD_RATIOS)] = (crs[pn_cols.MU_QTR_PE_RATIO] * crs[pn_cols.PEER_WEIGHTS]).groupby(level=1).sum().values
             self.comp_ratios.loc[(target_ticker,), (pn_cols.QTR_PE_RATIO, pn_cols.WTD_ADJ_RATIOS)] = (crs[pn_cols.MU_QTR_PE_RATIO] * crs[pn_cols.PEER_WEIGHTS] * target_k[pn_cols.K_QTR_PE]).groupby(level=1).sum().values
+            self.comp_ratios.loc[(target_ticker,), (pn_cols.QTR_PE_RATIO, pn_cols.TARGET_RATIOS)] = self.multiples.mu_price_ratios.loc[(target_ticker, ), pn_cols.MU_QTR_PE_RATIO].values
 
             self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.UN_WTD_RATIOS)] = (crs[pn_cols.MU_TTM_PE_RATIO]).groupby(level=1).mean().values
             self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.WTD_RATIOS)] = (crs[pn_cols.MU_TTM_PE_RATIO] * crs[pn_cols.PEER_WEIGHTS]).groupby(level=1).sum().values
             self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.WTD_ADJ_RATIOS)] = (crs[pn_cols.MU_TTM_PE_RATIO] * crs[pn_cols.PEER_WEIGHTS] * target_k[pn_cols.K_TTM_PE]).groupby(level=1).sum().values
+            self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.TARGET_RATIOS)] = self.multiples.mu_price_ratios.loc[(target_ticker, ), pn_cols.MU_TTM_PE_RATIO].values
 
 
     def calc_fair_value(self):
         previous_qtr = pd.to_datetime(date.today()) - pd.tseries.offsets.QuarterEnd()
         ndx = pd.MultiIndex.from_product([self.config.get_target_tickers(), [t[1] for t in pn_cols.TIME_AVG_LIST]])
         ndx.names = [pn_cols.TARGET_TICKER, pn_cols.TIME_AVG]
+        future_qtrs = self.config.forecasts.index.unique(level=1)
         cols_ndx = self.config.forecasts.index.unique(level=1).union(pd.Index([previous_qtr]))
         colx = pd.MultiIndex.from_product([[pn_cols.QTR_PE_FV, pn_cols.TTM_PE_FV], cols_ndx])
         self.fair_value = pd.DataFrame(columns=colx, index=ndx)
+        self.fair_value.sort_index(inplace=True)
 
         for target_ticker in self.config.get_target_tickers():
             if previous_qtr in self.multiples.price_ratios.loc[target_ticker].index:
-                previous_qtr_eps = self.multiples.price_ratios.loc[(target_ticker, previous_qtr), pn_cols.TTM_EPS]
-                pe = self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.WTD_ADJ_RATIOS)]
-                self.fair_value.loc[(target_ticker, ), (pn_cols.TTM_PE_FV, previous_qtr)] = (previous_qtr_eps * pe).values
+                fv_ttm_pe = self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.WTD_ADJ_RATIOS)]
+                fv_qtr_pe = self.comp_ratios.loc[(target_ticker,), (pn_cols.QTR_PE_RATIO, pn_cols.WTD_ADJ_RATIOS)]
+                previous_ttm_eps = self.multiples.price_ratios.loc[(target_ticker, previous_qtr), pn_cols.TTM_EPS]
+                self.fair_value.loc[(target_ticker, ), (pn_cols.TTM_PE_FV, previous_qtr)] = (previous_ttm_eps * fv_ttm_pe).values
+                previous_qtr_eps = self.multiples.price_ratios.loc[(target_ticker, previous_qtr), pn_cols.QTR_EPS]
+                self.fair_value.loc[(target_ticker, ), (pn_cols.QTR_PE_FV, previous_qtr)] = (previous_qtr_eps * fv_qtr_pe * 4).values
 
-        print('Break')
+            for forecast_qtr in future_qtrs:
+                print(forecast_qtr)
+            # self.fair_value.loc[(target_ticker, ), (pn_cols.QTR_PE_FV, future_qtrs.tolist())] = 2
+
+    print('Break')
 
 
 
