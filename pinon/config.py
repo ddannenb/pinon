@@ -45,10 +45,11 @@ class Config:
         return breaking_reports
 
     def parse_forecasts(self, sheet_name):
-        forecasts = pd.DataFrame(columns=[pn_cols.TICKER, pn_cols.REPORT_DATE, pn_cols.EPS_FORECAST, pn_cols.REVENUE_FORECAST, pn_cols.DIVIDEND_FORECAST])
+        forecasts = pd.DataFrame(columns=[pn_cols.TICKER, pn_cols.REPORT_DATE, pn_cols.QTR_EPS_FORECAST, pn_cols.QTR_REV_FORECAST, pn_cols.QTR_DIV_FORECAST])
         forecasts = pd.read_excel(self.config_path, sheet_name=sheet_name, header=46)
         forecasts.set_index([pn_cols.TICKER, pn_cols.REPORT_DATE], inplace=True)
-
+        # Rev entered is in million, convert
+        forecasts[pn_cols.QTR_REV_FORECAST] = forecasts[pn_cols.QTR_REV_FORECAST] * 1000000
         return forecasts
 
     def parse_target_sheet(self, sheet_name, past_years_requested=-1):
