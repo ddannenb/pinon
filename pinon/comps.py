@@ -14,6 +14,7 @@ class Comps:
         self.target_ks = None
         self.comp_ratios = None
         self.fair_value = None
+        self.ex_forecasts = None
         self.multiples = pn.Multiples(config)
 
     def run(self):
@@ -131,12 +132,12 @@ class Comps:
             self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.TARGET_RATIOS)] = self.multiples.mu_price_ratios.loc[(target_ticker, ), pn_cols.MU_TTM_PE_RATIO].values
 
     def extend_forecasts(self):
-        ex_forecasts = self.config.forecasts
+        self.ex_forecasts = None
         for ticker in self.config.forecasts.index.unique(level=pn_cols.TICKER):
             fcs = self.config.forecasts.loc[ticker]
             # get the last 3 qtrs of historical data for calculating ttm, coerce into df format of forecasts
-            prs = (self.multiples.price_ratios.loc[ticker].tail(3)).loc[:, [pn_cols.QTR_EPS]]
-            prs = prs.rename(columns={pn_cols.QTR_EPS: pn_cols.QTR_EPS_FORECAST})
+            prs = (self.multiples.price_ratios.loc[ticker].tail(3)).loc[:, [pn_cols.QTR_EPS, pn_cols.QTR_REV, pn_cols.QTR_DIV]]
+            prs = prs.rename(columns={pn_cols.QTR_EPS: pn_cols.QTR_EPS_FORECAST, pn_cols.QTR_REV: pn_cols.QTR_REV_FORECAST, pn_cols.QTR_DIV: pn_cols.QTR_DIV_FORECAST})
             last_qtr_rpt = prs.index.tolist()[-1]
             first_qtr_estimate = pd.to_datetime(last_qtr_rpt) + pd.tseries.offsets.QuarterEnd()
             if first_qtr_estimate not in fcs.index:
@@ -144,16 +145,30 @@ class Comps:
                 continue
             ex_ndx = prs.index.union(fcs.index)
             ex_ndx.name = pn_cols.REPORT_DATE
-            ex_fcs_cols = fcs.columns.append(pd.Index([pn_cols.TTM_EPS_FORECAST, pn_cols.TTM_REV_FORECAST, pn_cols.TTM_DIV_FORECAST]))
+            ex_fcs_cols = fcs.columns.append(pd.Index([pn_cols.TICKER, pn_cols.TTM_EPS_FORECAST, pn_cols.TTM_REV_FORECAST, pn_cols.TTM_DIV_FORECAST]))
             ex_fcs = pd.DataFrame(index=ex_ndx, columns=ex_fcs_cols)
             ex_fcs.update(fcs)
             ex_fcs.update(prs)
+            ex_fcs[pn_cols.TICKER] = ticker
+            ex_fcs[pn_cols.TTM_EPS_FORECAST] = ex_fcs[pn_cols.QTR_EPS_FORECAST].rolling(4).sum()
+            ex_fcs[pn_cols.TTM_REV_FORECAST] = ex_fcs[pn_cols.QTR_REV_FORECAST].rolling(4).sum()
+            ex_fcs[pn_cols.TTM_DIV_FORECAST] = ex_fcs[pn_cols.QTR_DIV_FORECAST].rolling(4).sum()
+            # drop first 3 rows that were used in the TTM calc
+            ex_fcs.drop(index=ex_fcs.index[:3], inplace=True, axis=0)
+            self.ex_forecasts = ex_fcs if self.ex_forecasts is None else pd.concat([self.ex_forecasts, ex_fcs])
 
-            print(ticker)
+        self.ex_forecasts.reset_index(inplace=True, drop=False)
+        self.ex_forecasts.set_index([pn_cols.TICKER, pn_cols.REPORT_DATE], inplace=True)
+        self.ex_forecasts.sort_index(inplace=True)
+        print('Break')
+
 
     def calc_fair_value(self):
+        if self.ex_forecasts is None:
+            self.extend_forecasts()
+
         previous_qtr = pd.to_datetime(date.today()) - pd.tseries.offsets.QuarterEnd()
-        fv_qtrs = self.config.forecasts.index.unique(level=1).union(pd.Index([previous_qtr]))
+        fv_qtrs = self.ex_forecasts.index.unique(level=1).union(pd.Index([previous_qtr]))
 
         ndx = pd.MultiIndex.from_product([self.config.get_target_tickers(), [t[1] for t in pn_cols.TIME_AVG_LIST]])
         ndx.names = [pn_cols.TARGET_TICKER, pn_cols.TIME_AVG]
@@ -171,10 +186,9 @@ class Comps:
                 if forecast_qtr in self.multiples.price_ratios.loc[target_ticker].index:
                     ttm_eps = self.multiples.price_ratios.loc[(target_ticker, forecast_qtr), pn_cols.TTM_EPS]
                     qtr_eps = self.multiples.price_ratios.loc[(target_ticker, forecast_qtr), pn_cols.QTR_EPS]
-                elif forecast_qtr in self.config.forecasts.loc[(target_ticker, )].index:
-                    # TODO - generate TTM EPS using past report data in combo with forecasts
-                    ttm_eps = self.config.forecasts.loc[(target_ticker, forecast_qtr), pn_cols.QTR_EPS_FORECAST]
-                    qtr_eps = self.config.forecasts.loc[(target_ticker, forecast_qtr), pn_cols.QTR_EPS_FORECAST]
+                elif forecast_qtr in self.ex_forecasts.loc[(target_ticker, )].index:
+                    ttm_eps = self.ex_forecasts.loc[(target_ticker, forecast_qtr), pn_cols.TTM_EPS_FORECAST]
+                    qtr_eps = self.ex_forecasts.loc[(target_ticker, forecast_qtr), pn_cols.QTR_EPS_FORECAST]
                 else:
                     print(f"There was no forecast EPS found for {target_ticker} for reporting date: {forecast_qtr}")
 

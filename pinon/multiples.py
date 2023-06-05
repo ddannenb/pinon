@@ -6,10 +6,9 @@ import names as pn_cols
 from daily_prices import DailyPrices
 from fundamentals import Fundamentals
 
-PE_COLS = [pn_cols.QTR_EPS, pn_cols.TTM_EPS, pn_cols.QTR_PE_RATIO, pn_cols.TTM_PE_RATIO]
 class Multiples:
     def __init__(self, config):
-        # self.ticker = ticker
+        self.PE_COLS = [pn_cols.QTR_EPS, pn_cols.TTM_EPS, pn_cols.QTR_REV, pn_cols.TTM_REV, pn_cols.QTR_DIV, pn_cols.TTM_DIV, pn_cols.QTR_PE_RATIO, pn_cols.TTM_PE_RATIO]
         self.config = config
         self.price_ratios = None
         self.mu_price_ratios = None
@@ -46,7 +45,7 @@ class Multiples:
                     self.config.breaking_reports.at[(ticker, upcoming_qtr), pn_cols.BREAKING_EMPLOYED] = True
                     print(f"Adding breaking report for ticker {ticker} for report date {upcoming_qtr.strftime('%Y-%m-%d')}")
 
-            df = pd.DataFrame(index=ndx, columns=PE_COLS)
+            df = pd.DataFrame(index=ndx, columns=self.PE_COLS)
             df.index.name = pn_cols.REPORT_DATE
             df[pn_cols.MU_QTR_PRICE] = dp[sf_cols.CLOSE]
             df[pn_cols.TICKER] = ticker
@@ -60,17 +59,24 @@ class Multiples:
         for ticker in self.config.companies.index:
             inc = self.fundamentals.get_quarterly_income_statement(ticker)
             dp = self.daily_prices.get_downsampled_prices(ticker)
-            pe = pd.DataFrame(index=self.price_ratios.loc[ticker].index, columns=PE_COLS)
+            pe = pd.DataFrame(index=self.price_ratios.loc[ticker].index, columns=self.PE_COLS)
 
             pe[pn_cols.QTR_EPS] = inc[sf_cols.NET_INCOME] / inc[sf_cols.SHARES_DILUTED]
+            pe[pn_cols.QTR_REV] = inc[sf_cols.REVENUE]
+            pe[pn_cols.QTR_DIV] = dp[sf_cols.DIVIDENDS]
             br = self.config.get_breaking_report(ticker)
             if br is not None:
                 pe.loc[(br[pn_cols.REPORT_DATE]), pn_cols.QTR_EPS] = br[pn_cols.EPS_BREAKING]
+                pe.loc[(br[pn_cols.REPORT_DATE]), pn_cols.QTR_REV] = br[pn_cols.REVENUE_BREAKING]
+                # TODO - add dividends to breaking reports
+
             pe[pn_cols.TTM_EPS] = pe[pn_cols.QTR_EPS].rolling(4).sum()
+            pe[pn_cols.TTM_REV] = pe[pn_cols.QTR_REV].rolling(4).sum()
+            pe[pn_cols.TTM_DIV] = pe[pn_cols.QTR_DIV].rolling(4).sum()
             pe[pn_cols.QTR_PE_RATIO] = dp[sf_cols.CLOSE] / pe[pn_cols.QTR_EPS] / 4
             pe[pn_cols.TTM_PE_RATIO] = dp[sf_cols.CLOSE] / pe[pn_cols.TTM_EPS]
 
-            self.price_ratios.loc[(ticker,), PE_COLS] = pe.values
+            self.price_ratios.loc[(ticker,), self.PE_COLS] = pe.values
 
     def run_mu_price_ratios(self):
         self.mu_price_ratios = None
