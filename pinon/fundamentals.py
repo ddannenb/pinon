@@ -56,6 +56,12 @@ class Fundamentals():
             return None
         return c.index[-1]
 
+    def get_past_years_available(self, ticker):
+        sd = self.get_last_report_date(ticker)
+        ed = self.get_first_report_date(ticker)
+        diff = sd - ed
+        return diff.days // 365
+
     def is_standard_reporting_dates(self, ticker):
         c = self.get_quarterly_income_statement(ticker)
         if c is None:

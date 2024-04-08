@@ -58,6 +58,10 @@ class Comps:
                 peer_k[pn_cols.TARGET_TICKER] = target_ticker
                 peer_k[pn_cols.PEER_TICKER] = peer_ticker
                 peer_k[pn_cols.PEER_WEIGHTS] = peer_weights[peer_ticker]
+                peer_k[pn_cols.K_TTM_PE] = np.empty((len(peer_k), 0)).tolist()
+                peer_k[pn_cols.K_QTR_PE] = np.empty((len(peer_k), 0)).tolist()
+                # peer_k[pn_cols.K_TTM_PE] = 0.0
+                # peer_k[pn_cols.K_QTR_PE] = 0.0
 
                 # Drop NaN and remove outliers outside of 2.0 sigma
                 pks_qtr_pe_no_nans = peer_ks.loc[:, pn_cols.K_QTR_PE].dropna()
