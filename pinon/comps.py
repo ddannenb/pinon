@@ -43,6 +43,35 @@ class Comps:
         self.all_ks.reset_index(inplace=True)
         self.all_ks.set_index([pn_cols.TARGET_TICKER, pn_cols.PEER_TICKER, pn_cols.REPORT_DATE], inplace=True)
 
+    def run_validation(self):
+        if self.all_ks is None:
+            self.run_all_ks()
+
+        for target_ticker in self.config.get_target_tickers():
+            target_ks = self.all_ks.loc[target_ticker]
+            peer_weights = self.config.get_peer_weights(target_ticker)
+
+            for peer_ticker, peer_ks in target_ks.groupby(level=pn_cols.PEER_TICKER):
+                val_k = pd.DataFrame(columns=[pn_cols.REPORT_DATE, pn_cols.TARGET_TICKER, pn_cols.PEER_TICKER, pn_cols.K_QTR_PE,
+                                               pn_cols.K_TTM_PE, pn_cols.MU_QTR_PRICE, pn_cols.PEER_WEIGHTS], index=peer_ks.index)
+                # val_k[pn_cols.K_QTR_PE] = val_k.loc[pn_cols.K_QTR_PE]
+                val_k[pn_cols.TARGET_TICKER] = target_ticker
+                val_k[pn_cols.PEER_TICKER] = peer_ticker
+                val_k[pn_cols.PEER_WEIGHTS] = peer_weights[peer_ticker]
+
+                # ROI calcs
+                for (num_yrs, roi_ndx) in pn_cols.ROI_LIST:
+                    if num_yrs == 1:
+                        # val_k[pn_cols.ROI_1_YEAR] = self.multiples.price_ratios.loc[(peer_ticker,), pn_cols.MU_QTR_PRICE].rolling(4).apply(self.calc_roi)
+                        val_k[pn_cols.ROI_1_YEAR] = self.multiples.price_ratios.loc[(peer_ticker,), pn_cols.MU_QTR_PRICE].rolling('4QE', min_periods=1).apply(self.calc_roi)
+
+                val_k[pn_cols.MU_QTR_PRICE] = self.multiples.price_ratios.loc[peer_ticker, pn_cols.MU_QTR_PRICE]
+                val_k[pn_cols.K_TTM_PE] = np.empty((len(val_k), 0)).tolist()
+                val_k[pn_cols.K_QTR_PE] = np.empty((len(val_k), 0)).tolist()
+
+    def calc_roi(self, x):
+        print(x)
+
     def run_peer_ks(self):
         self.peer_ks = None
         if self.all_ks is None:
@@ -64,6 +93,7 @@ class Comps:
                 # peer_k[pn_cols.K_QTR_PE] = 0.0
 
                 # Drop NaN and remove outliers outside of 2.0 sigma
+                # TODO - record a count of outliers as a flag for unstable equities
                 pks_qtr_pe_no_nans = peer_ks.loc[:, pn_cols.K_QTR_PE].dropna()
                 pks_ttm_pe_no_nans = peer_ks.loc[:, pn_cols.K_TTM_PE].dropna()
                 m_pks_qtr_pe = np.abs(stats.zscore((pks_qtr_pe_no_nans *10000).astype('int'))) <= 2.0
@@ -104,6 +134,7 @@ class Comps:
         if self.peer_ks is None:
             self.run_peer_ks()
 
+        # self.target_ks is the weighted mean of the peer_ks averaged over time avg with outliers and nans removed, indexed by target ticker and time avg
         for target_ticker, peer_ks in self.peer_ks.groupby(level=pn_cols.TARGET_TICKER):
             peer_ks_weighted = peer_ks[[pn_cols.K_QTR_PE, pn_cols.K_TTM_PE]].multiply(peer_ks[pn_cols.PEER_WEIGHTS], axis='index')
             target_k = peer_ks_weighted.groupby(level=pn_cols.TIME_AVG, sort=False).sum()
@@ -120,8 +151,9 @@ class Comps:
         self.comp_ratios = pd.DataFrame(columns=colx, index=ndx)
         self.comp_ratios.sort_index(inplace=True)
         for target_ticker in self.config.get_target_tickers():
-            # Note: use the k value obtained from maximum history
-            target_k = self.target_ks.loc[(target_ticker, pn_cols.TIME_AVG_MAX_YEAR)]
+
+            # TODO - correct to use target k from each time avg, previously used max history??
+            target_k = self.target_ks.loc[(target_ticker,)]
             crs = self.multiples.mu_price_ratios.loc[self.config.get_peer_list(target_ticker)]
             crs[pn_cols.PEER_WEIGHTS] = pd.Series(crs.index.get_level_values(0)).map(self.config.get_peer_weights(target_ticker)).values
 

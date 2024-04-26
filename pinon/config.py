@@ -84,6 +84,7 @@ class Config:
                 cc[pn_cols.LAST_REPORT_DATE] = funds.get_last_report_date(ticker)
                 cc[pn_cols.PAST_YEARS_AVAILABLE] = funds.get_past_years_available(ticker)
                 companies.loc[len(companies.index)] = cc
+                companies = companies.astype(dtype={pn_cols.EVALUATE: "boolean"})
 
         companies.set_index(pn_cols.TICKER, inplace=True, drop=True)
 
