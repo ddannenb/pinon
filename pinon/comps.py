@@ -52,25 +52,32 @@ class Comps:
             peer_weights = self.config.get_peer_weights(target_ticker)
 
             for peer_ticker, peer_ks in target_ks.groupby(level=pn_cols.PEER_TICKER):
-                val_k = pd.DataFrame(columns=[pn_cols.REPORT_DATE, pn_cols.TARGET_TICKER, pn_cols.PEER_TICKER, pn_cols.K_QTR_PE,
+                val_k = pd.DataFrame(columns=[pn_cols.TARGET_TICKER, pn_cols.K_QTR_PE,
                                                pn_cols.K_TTM_PE, pn_cols.MU_QTR_PRICE, pn_cols.PEER_WEIGHTS], index=peer_ks.index)
-                # val_k[pn_cols.K_QTR_PE] = val_k.loc[pn_cols.K_QTR_PE]
-                val_k[pn_cols.TARGET_TICKER] = target_ticker
-                val_k[pn_cols.PEER_TICKER] = peer_ticker
-                val_k[pn_cols.PEER_WEIGHTS] = peer_weights[peer_ticker]
+
 
                 # ROI calcs
                 for (num_yrs, roi_ndx) in pn_cols.ROI_LIST:
-                    if num_yrs == 1:
-                        # val_k[pn_cols.ROI_1_YEAR] = self.multiples.price_ratios.loc[(peer_ticker,), pn_cols.MU_QTR_PRICE].rolling(4).apply(self.calc_roi)
-                        val_k[pn_cols.ROI_1_YEAR] = self.multiples.price_ratios.loc[(peer_ticker,), pn_cols.MU_QTR_PRICE].rolling('4QE', min_periods=1).apply(self.calc_roi)
+                    if num_yrs > 0:
+                        s = self.multiples.price_ratios.loc[(peer_ticker,), pn_cols.MU_QTR_PRICE].rolling(num_yrs*4).apply(self.calc_roi, raw=False, args=(peer_ticker, num_yrs)).shift(-num_yrs*4-1)
+                    else:
+                        l = len(self.multiples.price_ratios.loc[(peer_ticker, )])
+                        s = self.multiples.price_ratios.loc[(peer_ticker,), pn_cols.MU_QTR_PRICE].rolling(l).apply(self.calc_roi, raw=False, args=(peer_ticker, l/4)).shift(-l+1)
+
+                val_k.loc[(peer_ticker,), (roi_ndx,)] = s.values
+                val_k[pn_cols.TARGET_TICKER] = target_ticker
+                val_k[pn_cols.PEER_WEIGHTS] = peer_weights[peer_ticker]
 
                 val_k[pn_cols.MU_QTR_PRICE] = self.multiples.price_ratios.loc[peer_ticker, pn_cols.MU_QTR_PRICE]
                 val_k[pn_cols.K_TTM_PE] = np.empty((len(val_k), 0)).tolist()
                 val_k[pn_cols.K_QTR_PE] = np.empty((len(val_k), 0)).tolist()
 
-    def calc_roi(self, x):
-        print(x)
+    def calc_roi(self, mu_price, peer_ticker, num_yrs):
+        div_return = self.multiples.price_ratios.loc[(peer_ticker, mu_price.index), (pn_cols.QTR_DIV)].sum()
+        p = mu_price.iloc[0]
+        g = mu_price.iloc[-1] - p
+        ann_roi = (((p + g)/p)**(1/num_yrs) - 1)
+        return ann_roi
 
     def run_peer_ks(self):
         self.peer_ks = None
