@@ -37,7 +37,7 @@ class Config:
         self.forecasts = self.parse_forecasts(self.target_sheet_name)
 
     def parse_breaking_reports(self, sheet_name):
-        breaking_reports = pd.DataFrame(columns=[pn_cols.TICKER, pn_cols.REPORT_DATE, pn_cols.EPS_BREAKING, pn_cols.REVENUE_BREAKING])
+        breaking_reports = pd.DataFrame(columns=[pn_cols.TICKER, pn_cols.REPORT_DATE, pn_cols.EPS_BREAKING, pn_cols.REVENUE_BREAKING, pn_cols.DIV_BREAKING])
         breaking_reports = pd.read_excel(self.config_path, sheet_name=sheet_name, header=32, nrows=10)
         breaking_reports[pn_cols.BREAKING_EMPLOYED] = False
         breaking_reports.set_index([pn_cols.TICKER, pn_cols.REPORT_DATE], inplace=True)
@@ -104,12 +104,21 @@ class Config:
 
         return companies
 
-    def get_breaking_report(self, ticker):
+    def get_breaking_report(self, ticker, upcoming_qtr):
         if ticker not in self.breaking_reports.index:
             return None
         brs = self.breaking_reports.loc[ticker]
-        br = brs[brs[pn_cols.BREAKING_EMPLOYED]]
-        return None if br.empty else br.reset_index().squeeze()
+        if brs is None:
+            return None
+
+        if upcoming_qtr in brs.index:
+            self.breaking_reports.at[(ticker, upcoming_qtr), pn_cols.BREAKING_EMPLOYED] = True
+            print(f"Adding breaking report for ticker {ticker} for report date {upcoming_qtr.strftime('%Y-%m-%d')}")
+            return brs.loc[(upcoming_qtr, ), :]
+        else:
+            return None
+        # br = brs[brs[pn_cols.BREAKING_EMPLOYED]]
+        # return None if br.empty else br.reset_index().squeeze()
         # # Move following block to config
         # if ticker in br.index:
         #     breaking_report_date = br.index.tolist()[0][1]

@@ -15,6 +15,7 @@ class Comps:
         self.comp_ratios = None
         self.fair_value = None
         self.ex_forecasts = None
+        self.all_val = None
         self.multiples = pn.Multiples(config)
 
     def run(self):
@@ -24,15 +25,15 @@ class Comps:
         self.calc_present_comp_ratios()
 
     def run_all_ks(self):
-        if self.multiples.price_ratios is None:
+        if self.multiples.qtr_derived_bases is None:
             self.multiples.run_price_ratios()
 
         self.all_ks = None
         for target_ticker in self.config.get_target_tickers():
             peer_list = self.config.get_peer_list(target_ticker)
-            target_ratios = self.multiples.price_ratios.loc[target_ticker]
+            target_ratios = self.multiples.qtr_derived_bases.loc[target_ticker]
             for peer_ticker in peer_list:
-                peer_ratios = self.multiples.price_ratios.loc[peer_ticker]
+                peer_ratios = self.multiples.qtr_derived_bases.loc[peer_ticker]
                 k_pe = pd.DataFrame(columns=[pn_cols.TARGET_TICKER, pn_cols.PEER_TICKER, pn_cols.K_QTR_PE, pn_cols.K_TTM_PE])
                 k_pe.loc[:, pn_cols.K_TTM_PE] = target_ratios[pn_cols.TTM_PE_RATIO] / peer_ratios[pn_cols.TTM_PE_RATIO]
                 k_pe.loc[:, pn_cols.K_QTR_PE] = target_ratios[pn_cols.QTR_PE_RATIO] / peer_ratios[pn_cols.QTR_PE_RATIO]
@@ -52,28 +53,29 @@ class Comps:
             peer_weights = self.config.get_peer_weights(target_ticker)
 
             for peer_ticker, peer_ks in target_ks.groupby(level=pn_cols.PEER_TICKER):
-                val_k = pd.DataFrame(columns=[pn_cols.TARGET_TICKER, pn_cols.K_QTR_PE,
+                peer_val = pd.DataFrame(columns=[pn_cols.TARGET_TICKER, pn_cols.K_QTR_PE,
                                                pn_cols.K_TTM_PE, pn_cols.MU_QTR_PRICE, pn_cols.PEER_WEIGHTS], index=peer_ks.index)
 
 
                 # ROI calcs
                 for (num_yrs, roi_ndx) in pn_cols.ROI_LIST:
                     if num_yrs > 0:
-                        s = self.multiples.price_ratios.loc[(peer_ticker,), pn_cols.MU_QTR_PRICE].rolling(num_yrs*4).apply(self.calc_roi, raw=False, args=(peer_ticker, num_yrs)).shift(-num_yrs*4-1)
+                        s = self.multiples.qtr_derived_bases.loc[(peer_ticker,), pn_cols.MU_QTR_PRICE].rolling(num_yrs * 4).apply(self.calc_roi, raw=False, args=(peer_ticker, num_yrs)).shift(-num_yrs * 4 - 1)
                     else:
-                        l = len(self.multiples.price_ratios.loc[(peer_ticker, )])
-                        s = self.multiples.price_ratios.loc[(peer_ticker,), pn_cols.MU_QTR_PRICE].rolling(l).apply(self.calc_roi, raw=False, args=(peer_ticker, l/4)).shift(-l+1)
+                        l = len(self.multiples.qtr_derived_bases.loc[(peer_ticker,)])
+                        s = self.multiples.qtr_derived_bases.loc[(peer_ticker,), pn_cols.MU_QTR_PRICE].rolling(l).apply(self.calc_roi, raw=False, args=(peer_ticker, l / 4)).shift(-l + 1)
 
-                val_k.loc[(peer_ticker,), (roi_ndx,)] = s.values
-                val_k[pn_cols.TARGET_TICKER] = target_ticker
-                val_k[pn_cols.PEER_WEIGHTS] = peer_weights[peer_ticker]
+                    peer_val.loc[(peer_ticker,), (roi_ndx,)] = s.values
 
-                val_k[pn_cols.MU_QTR_PRICE] = self.multiples.price_ratios.loc[peer_ticker, pn_cols.MU_QTR_PRICE]
-                val_k[pn_cols.K_TTM_PE] = np.empty((len(val_k), 0)).tolist()
-                val_k[pn_cols.K_QTR_PE] = np.empty((len(val_k), 0)).tolist()
+                peer_val[pn_cols.TARGET_TICKER] = target_ticker
+                peer_val[pn_cols.PEER_WEIGHTS] = peer_weights[peer_ticker]
+
+                peer_val[pn_cols.MU_QTR_PRICE] = self.multiples.qtr_derived_bases.loc[peer_ticker, pn_cols.MU_QTR_PRICE]
+                peer_val[pn_cols.K_TTM_PE] = np.empty((len(peer_val), 0)).tolist()
+                peer_val[pn_cols.K_QTR_PE] = np.empty((len(peer_val), 0)).tolist()
 
     def calc_roi(self, mu_price, peer_ticker, num_yrs):
-        div_return = self.multiples.price_ratios.loc[(peer_ticker, mu_price.index), (pn_cols.QTR_DIV)].sum()
+        div_return = self.multiples.qtr_derived_bases.loc[(peer_ticker, mu_price.index), (pn_cols.QTR_DIV)].sum()
         p = mu_price.iloc[0]
         g = mu_price.iloc[-1] - p
         ann_roi = (((p + g)/p)**(1/num_yrs) - 1)
@@ -179,7 +181,7 @@ class Comps:
         for ticker in self.config.forecasts.index.unique(level=pn_cols.TICKER):
             fcs = self.config.forecasts.loc[ticker]
             # get the last 3 qtrs of historical data for calculating ttm, coerce into df format of forecasts
-            prs = (self.multiples.price_ratios.loc[ticker].tail(3)).loc[:, [pn_cols.QTR_EPS, pn_cols.QTR_REV, pn_cols.QTR_DIV]]
+            prs = (self.multiples.qtr_derived_bases.loc[ticker].tail(3)).loc[:, [pn_cols.QTR_EPS, pn_cols.QTR_REV, pn_cols.QTR_DIV]]
             prs = prs.rename(columns={pn_cols.QTR_EPS: pn_cols.QTR_EPS_FORECAST, pn_cols.QTR_REV: pn_cols.QTR_REV_FORECAST, pn_cols.QTR_DIV: pn_cols.QTR_DIV_FORECAST})
             last_qtr_rpt = prs.index.tolist()[-1]
             first_qtr_estimate = pd.to_datetime(last_qtr_rpt) + pd.tseries.offsets.QuarterEnd()
@@ -226,9 +228,9 @@ class Comps:
             for forecast_qtr in fv_qtrs:
                 ttm_eps = None
                 qtr_eps = None
-                if forecast_qtr in self.multiples.price_ratios.loc[target_ticker].index:
-                    ttm_eps = self.multiples.price_ratios.loc[(target_ticker, forecast_qtr), pn_cols.TTM_EPS]
-                    qtr_eps = self.multiples.price_ratios.loc[(target_ticker, forecast_qtr), pn_cols.QTR_EPS]
+                if forecast_qtr in self.multiples.qtr_derived_bases.loc[target_ticker].index:
+                    ttm_eps = self.multiples.qtr_derived_bases.loc[(target_ticker, forecast_qtr), pn_cols.TTM_EPS]
+                    qtr_eps = self.multiples.qtr_derived_bases.loc[(target_ticker, forecast_qtr), pn_cols.QTR_EPS]
                 elif forecast_qtr in self.ex_forecasts.loc[(target_ticker, )].index:
                     ttm_eps = self.ex_forecasts.loc[(target_ticker, forecast_qtr), pn_cols.TTM_EPS_FORECAST]
                     qtr_eps = self.ex_forecasts.loc[(target_ticker, forecast_qtr), pn_cols.QTR_EPS_FORECAST]
