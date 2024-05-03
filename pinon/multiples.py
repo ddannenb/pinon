@@ -18,7 +18,6 @@ class Multiples:
     def run_price_ratios(self):
         self.run_qtr_derived()
         self.calc_quarterly_pe()
-        # TODO additional multiple calc go here
         self.run_mu_price_ratios()
         return self.qtr_derived_bases
 
@@ -39,44 +38,26 @@ class Multiples:
             s_ndx = len(ndx) - past_qtrs if len(ndx) > past_qtrs else 0
             ndx = ndx.take([*range(s_ndx, len(ndx))])
 
-
-
-
+            df = pd.DataFrame(index=ndx, columns=DF_COLS)
+            df.index.name = pn_cols.REPORT_DATE
 
             # Breaking reports
-            # if ticker in self.config.breaking_reports.index:
-            #     upcoming_qtr = ndx[-1] + pd.tseries.offsets.QuarterEnd()
-            #     breaking_report = self.config.breaking_reports.loc[ticker]
-            #     if upcoming_qtr in breaking_report.index and upcoming_qtr in dp.index:
-            #         ndx = ndx.append(pd.Index([upcoming_qtr]))
-            #         # TODO Not clear that breaking report is being added, just the index??
-            #         # df = pd.concat([df, pd.DataFrame(index=pd.Index([upcoming_qtr]))])
-            #         self.config.breaking_reports.at[(ticker, upcoming_qtr), pn_cols.BREAKING_EMPLOYED] = True
-            #         print(f"Adding breaking report for ticker {ticker} for report date {upcoming_qtr.strftime('%Y-%m-%d')}")
+            upcoming_qtr = df.index[-1] + pd.tseries.offsets.QuarterEnd()
+            # Note: ndx is intersection of dp and inc indexes. To use the breaking report, must have downsampled price for the quarter but not the published reports
+            if upcoming_qtr not in ndx and upcoming_qtr in dp.index:
+                br = self.config.get_breaking_report(ticker, upcoming_qtr)
+                if br is not None:
+                    df = pd.concat([df, pd.DataFrame(index=pd.Index([upcoming_qtr]))])
+                    df.loc[upcoming_qtr, [pn_cols.QTR_EPS, pn_cols.QTR_REV, pn_cols.QTR_DIV, pn_cols.BREAKING_EMPLOYED]]\
+                        = br.loc[upcoming_qtr, [pn_cols.EPS_BREAKING, pn_cols.REVENUE_BREAKING, pn_cols.DIV_BREAKING, pn_cols.BREAKING_EMPLOYED]].to_list()
 
-            df = pd.DataFrame(index=ndx, columns=DF_COLS)
-
-            # Reference data
-            df.index.name = pn_cols.REPORT_DATE
+            # Non derived reference columns
             df[pn_cols.TICKER] = ticker
             df[pn_cols.BREAKING_EMPLOYED] = False
             df[pn_cols.QTR_DIV] = dp[sf_cols.DIVIDENDS]
             df[pn_cols.QTR_REV] = inc[sf_cols.REVENUE]
             df[pn_cols.QTR_EPS] = inc[sf_cols.NET_INCOME] / inc[sf_cols.SHARES_DILUTED]
             df[pn_cols.MU_QTR_PRICE] = dp[sf_cols.CLOSE]
-
-            # Breaking reports - NEW
-            upcoming_qtr = df.index[-1] + pd.tseries.offsets.QuarterEnd()
-            # Note: ndx is intersection of dp and inc indexes. To use the breaking report, must have downsampled price for the quarter but no the published reports
-            if upcoming_qtr not in ndx and upcoming_qtr in dp.index:
-                br = self.config.get_breaking_report(ticker, upcoming_qtr)
-                if br is not None:
-                    # ndx = ndx.append(pd.Index([upcoming_qtr]))
-                    # df.index = df.index.append(pd.Index([upcoming_qtr]))
-                    # df.set_index(ndx)
-                    df = pd.concat([df, pd.DataFrame(index=pd.Index([upcoming_qtr]))])
-                    df.loc[upcoming_qtr, [pn_cols.QTR_EPS, pn_cols.QTR_REV, pn_cols.QTR_DIV, pn_cols.BREAKING_EMPLOYED]]\
-                        = br.loc[upcoming_qtr, [pn_cols.EPS_BREAKING, pn_cols.REVENUE_BREAKING, pn_cols.DIV_BREAKING, pn_cols.BREAKING_EMPLOYED]].to_list()
 
             # ROI and ROI score
             # for (num_yrs, roi_ndx) in pn_cols.ROI_LIST:
