@@ -74,13 +74,6 @@ class Comps:
                 peer_val[pn_cols.K_TTM_PE] = np.empty((len(peer_val), 0)).tolist()
                 peer_val[pn_cols.K_QTR_PE] = np.empty((len(peer_val), 0)).tolist()
 
-    def calc_roi(self, mu_price, peer_ticker, num_yrs):
-        div_return = self.multiples.qtr_derived_bases.loc[(peer_ticker, mu_price.index), (pn_cols.QTR_DIV)].sum()
-        p = mu_price.iloc[0]
-        g = mu_price.iloc[-1] - p
-        ann_roi = (((p + g)/p)**(1/num_yrs) - 1)
-        return ann_roi
-
     def run_peer_ks(self):
         self.peer_ks = None
         if self.all_ks is None:

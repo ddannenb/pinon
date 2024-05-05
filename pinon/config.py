@@ -107,21 +107,17 @@ class Config:
     def get_breaking_report(self, ticker, upcoming_qtr):
         if ticker not in self.breaking_reports.index:
             return None
+
         brs = self.breaking_reports.loc[ticker]
         if brs is None:
             return None
 
-        if upcoming_qtr in brs.index:
-            self.breaking_reports.at[(ticker, upcoming_qtr), pn_cols.BREAKING_EMPLOYED] = True
-            print(f"Adding breaking report for ticker {ticker} for report date {upcoming_qtr.strftime('%Y-%m-%d')}")
-            return brs.loc[(upcoming_qtr, ), :]
-        else:
+        if upcoming_qtr not in brs.index:
             return None
-        # br = brs[brs[pn_cols.BREAKING_EMPLOYED]]
-        # return None if br.empty else br.reset_index().squeeze()
-        # # Move following block to config
-        # if ticker in br.index:
-        #     breaking_report_date = br.index.tolist()[0][1]
+
+        self.breaking_reports.at[(ticker, upcoming_qtr), pn_cols.BREAKING_EMPLOYED] = True
+        print(f"Adding breaking report for ticker {ticker} for report date {upcoming_qtr.strftime('%Y-%m-%d')}")
+        return brs.loc[(upcoming_qtr, ), :]
 
     def get_targets(self):
         return self.companies.loc[self.companies[pn_cols.EVALUATE]]

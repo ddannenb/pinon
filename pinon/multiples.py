@@ -24,7 +24,7 @@ class Multiples:
     def run_qtr_derived(self):
 
         DF_COLS = [pn_cols.TICKER, pn_cols.QTR_EPS, pn_cols.TTM_EPS, pn_cols.QTR_REV, pn_cols.TTM_REV, pn_cols.QTR_DIV,
-                   pn_cols.TTM_DIV, pn_cols.QTR_PE_RATIO, pn_cols.TTM_PE_RATIO, pn_cols.MU_QTR_PRICE, pn_cols.BREAKING_EMPLOYED]
+                   pn_cols.TTM_DIV, pn_cols.QTR_PE_RATIO, pn_cols.TTM_PE_RATIO, pn_cols.MU_QTR_PRICE, pn_cols.BREAKING_EMPLOYED] + [n for (x, n) in pn_cols.ROI_LIST]
 
         self.qtr_derived_bases = None
 
@@ -32,6 +32,7 @@ class Multiples:
             inc = self.fundamentals.get_quarterly_income_statement(ticker)
             dp = self.daily_prices.get_downsampled_prices(ticker)
             ndx = dp.index.intersection(inc.index)
+            ndx.name = pn_cols.REPORT_DATE
 
             # Limit data to number of years requested
             past_qtrs = self.config.companies.loc[ticker, pn_cols.PAST_YEARS_REQUESTED] * 4
@@ -39,7 +40,14 @@ class Multiples:
             ndx = ndx.take([*range(s_ndx, len(ndx))])
 
             df = pd.DataFrame(index=ndx, columns=DF_COLS)
-            df.index.name = pn_cols.REPORT_DATE
+
+            # Before Breaking reports so those values don't get overwritten
+            df[pn_cols.QTR_EPS] = inc[sf_cols.NET_INCOME] / inc[sf_cols.SHARES_DILUTED]
+            df[pn_cols.QTR_DIV] = dp[sf_cols.DIVIDENDS].fillna(0)
+            df[pn_cols.QTR_REV] = inc[sf_cols.REVENUE]
+            df[pn_cols.BREAKING_EMPLOYED] = df[pn_cols.BREAKING_EMPLOYED].astype(object)
+            df[pn_cols.BREAKING_EMPLOYED] = False
+
 
             # Breaking reports
             upcoming_qtr = df.index[-1] + pd.tseries.offsets.QuarterEnd()
@@ -47,37 +55,49 @@ class Multiples:
             if upcoming_qtr not in ndx and upcoming_qtr in dp.index:
                 br = self.config.get_breaking_report(ticker, upcoming_qtr)
                 if br is not None:
-                    df = pd.concat([df, pd.DataFrame(index=pd.Index([upcoming_qtr]))])
-                    df.loc[upcoming_qtr, [pn_cols.QTR_EPS, pn_cols.QTR_REV, pn_cols.QTR_DIV, pn_cols.BREAKING_EMPLOYED]]\
-                        = br.loc[upcoming_qtr, [pn_cols.EPS_BREAKING, pn_cols.REVENUE_BREAKING, pn_cols.DIV_BREAKING, pn_cols.BREAKING_EMPLOYED]].to_list()
+                    df = pd.concat([df, pd.DataFrame(index=pd.Index([upcoming_qtr], name=pn_cols.REPORT_DATE))])
+                    df.loc[upcoming_qtr, [pn_cols.QTR_EPS, pn_cols.QTR_REV, pn_cols.QTR_DIV, pn_cols.BREAKING_EMPLOYED]] \
+                        = br.loc[upcoming_qtr, [pn_cols.EPS_BREAKING, pn_cols.REVENUE_BREAKING, pn_cols.DIV_BREAKING,
+                                                pn_cols.BREAKING_EMPLOYED]].to_list()
 
-            # Non derived reference columns
+            #
             df[pn_cols.TICKER] = ticker
-            df[pn_cols.BREAKING_EMPLOYED] = False
-            df[pn_cols.QTR_DIV] = dp[sf_cols.DIVIDENDS]
-            df[pn_cols.QTR_REV] = inc[sf_cols.REVENUE]
-            df[pn_cols.QTR_EPS] = inc[sf_cols.NET_INCOME] / inc[sf_cols.SHARES_DILUTED]
             df[pn_cols.MU_QTR_PRICE] = dp[sf_cols.CLOSE]
 
-            # ROI and ROI score
-            # for (num_yrs, roi_ndx) in pn_cols.ROI_LIST:
-            #     if num_yrs > 0:
-            #         s = df.loc[]
-            #         s = self.multiples.qtr_derived_bases.loc[(peer_ticker,), pn_cols.MU_QTR_PRICE].rolling(
-            #             num_yrs * 4).apply(self.calc_roi, raw=False, args=(peer_ticker, num_yrs)).shift(
-            #             -num_yrs * 4 - 1)
-            #     else:
-            #         l = len(self.multiples.qtr_derived_bases.loc[(peer_ticker,)])
-            #         s = self.multiples.qtr_derived_bases.loc[(peer_ticker,), pn_cols.MU_QTR_PRICE].rolling(l).apply(
-            #             self.calc_roi, raw=False, args=(peer_ticker, l / 4)).shift(-l + 1)
-            #
-            #     peer_val.loc[(peer_ticker,), (roi_ndx,)] = s.values
+            df[pn_cols.TTM_EPS] = df[pn_cols.QTR_EPS].rolling(4).sum()
+            df[pn_cols.TTM_REV] = df[pn_cols.QTR_REV].rolling(4).sum()
+            df[pn_cols.TTM_DIV] = df[pn_cols.QTR_DIV].rolling(4).sum()
 
+            # Derived price ratios
+            df[pn_cols.QTR_PE_RATIO] = dp[sf_cols.CLOSE] / df[pn_cols.QTR_EPS] / 4
+            df[pn_cols.TTM_PE_RATIO] = dp[sf_cols.CLOSE] / df[pn_cols.TTM_EPS]
+
+            # Derived references
+
+            # ROI and ROI score
+            for (num_yrs, roi_ndx) in pn_cols.ROI_LIST:
+                if num_yrs > 0:
+                    # s = df.loc[:, pn_cols.MU_QTR_PRICE].rolling(num_yrs * 4).apply(self.calc_roi, raw=False, args=(df, ticker, num_yrs))
+                    s = df.loc[:, pn_cols.MU_QTR_PRICE].rolling(num_yrs * 4).apply(self.calc_roi, raw=False, args=(df, ticker, num_yrs)).shift(-num_yrs * 4 + 1)
+                else:
+                    l = len(df)
+                    s = df.loc[:, pn_cols.MU_QTR_PRICE].rolling(l).apply(self.calc_roi, raw=False, args=(df, ticker, l / 4)).shift(-l + 1)
+
+                df.loc[:, roi_ndx] = s.values
+
+            # Append all of the tickers together
             self.qtr_derived_bases = df if self.qtr_derived_bases is None else pd.concat([self.qtr_derived_bases, df])
 
         self.qtr_derived_bases.reset_index(inplace=True)
         self.qtr_derived_bases.set_index([pn_cols.TICKER, pn_cols.REPORT_DATE], inplace=True)
         self.qtr_derived_bases.sort_index(inplace=True)
+
+    def calc_roi(self, mu_price, df, ticker, num_yrs):
+        div_return = df.loc[mu_price.index, pn_cols.QTR_DIV].sum()
+        p = mu_price.iloc[0]
+        g = mu_price.iloc[-1] + div_return - p
+        ann_roi = (((p + g)/p)**(1/num_yrs) - 1)
+        return ann_roi
 
     def calc_quarterly_pe(self):
         for ticker in self.config.companies.index:
@@ -94,9 +114,9 @@ class Multiples:
                 pe.loc[(br[pn_cols.REPORT_DATE]), pn_cols.QTR_REV] = br[pn_cols.REVENUE_BREAKING]
                 # TODO - add dividends to breaking reports
 
-            pe[pn_cols.TTM_EPS] = pe[pn_cols.QTR_EPS].rolling(4).sum()
-            pe[pn_cols.TTM_REV] = pe[pn_cols.QTR_REV].rolling(4).sum()
-            pe[pn_cols.TTM_DIV] = pe[pn_cols.QTR_DIV].rolling(4).sum()
+            # pe[pn_cols.TTM_EPS] = pe[pn_cols.QTR_EPS].rolling(4).sum()
+            # pe[pn_cols.TTM_REV] = pe[pn_cols.QTR_REV].rolling(4).sum()
+            # pe[pn_cols.TTM_DIV] = pe[pn_cols.QTR_DIV].rolling(4).sum()
             pe[pn_cols.QTR_PE_RATIO] = dp[sf_cols.CLOSE] / pe[pn_cols.QTR_EPS] / 4
             pe[pn_cols.TTM_PE_RATIO] = dp[sf_cols.CLOSE] / pe[pn_cols.TTM_EPS]
 
