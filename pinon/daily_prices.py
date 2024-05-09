@@ -13,7 +13,7 @@ class DailyPrices:
         return self.daily_share_price_ratios.loc[ticker]
     def get_downsampled_prices(self, ticker, period='quarterly'):
         """
-         Returns prices downsampled to quarterly mean. The quarterly date index represents the right side (end) of the interval
+         Returns prices downsampled to quarterly or monthly mean. The  date index represents the right side (end) of the interval
         """
         pl = period.lower()
         rule = None

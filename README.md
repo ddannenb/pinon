@@ -8,6 +8,7 @@ pandas: 2.2.1
 numpy: 1.26.4
 scipy: 1.13.0
 openpyxl: 3.1.2
+pytest: 7.4.0
 
 
 Issue with python debugger crashing when debugging auto reload module from Jupyter notebook.  This a version issue with debugpy.  pip uninstall/install debugpy to correct.

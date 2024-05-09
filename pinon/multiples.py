@@ -17,7 +17,6 @@ class Multiples:
 
     def run_price_ratios(self):
         self.run_qtr_derived()
-        self.calc_quarterly_pe()
         self.run_mu_price_ratios()
         return self.qtr_derived_bases
 
