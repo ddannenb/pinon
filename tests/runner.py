@@ -9,7 +9,7 @@ env['SIMFIN_DATA_PATH'] = SIMFIN_TEST_DATA_PATH.absolute().as_posix()
 
 def main():
     config = pn.Config('master', 'V', 15)
-    m = pn.Multiples(config)
+    m = pn.DerivedBases(config)
     m.run_price_ratios()
     print('Here')
 

@@ -16,7 +16,7 @@ class Comps:
         self.fair_value = None
         self.ex_forecasts = None
         self.all_val = None
-        self.multiples = pn.Multiples(config)
+        self.multiples = pn.DerivedBases(config)
 
     def run(self):
         self.run_all_ks()
@@ -126,18 +126,18 @@ class Comps:
 
             # TODO - correct to use target k from each time avg, previously used max history??
             target_k = self.target_ks.loc[(target_ticker,)]
-            crs = self.multiples.mu_price_ratios.loc[self.config.get_peer_list(target_ticker)]
+            crs = self.multiples.mu_time_bases.loc[self.config.get_peer_list(target_ticker)]
             crs[pn_cols.PEER_WEIGHTS] = pd.Series(crs.index.get_level_values(0)).map(self.config.get_peer_weights(target_ticker)).values
 
             self.comp_ratios.loc[(target_ticker,), (pn_cols.QTR_PE_RATIO, pn_cols.UN_WTD_RATIOS)] = (crs[pn_cols.MU_QTR_PE_RATIO]).groupby(level=1).mean().values
             self.comp_ratios.loc[(target_ticker,), (pn_cols.QTR_PE_RATIO, pn_cols.WTD_RATIOS)] = (crs[pn_cols.MU_QTR_PE_RATIO] * crs[pn_cols.PEER_WEIGHTS]).groupby(level=1).sum().values
             self.comp_ratios.loc[(target_ticker,), (pn_cols.QTR_PE_RATIO, pn_cols.WTD_ADJ_RATIOS)] = (crs[pn_cols.MU_QTR_PE_RATIO] * crs[pn_cols.PEER_WEIGHTS] * target_k[pn_cols.K_QTR_PE]).groupby(level=1).sum().values
-            self.comp_ratios.loc[(target_ticker,), (pn_cols.QTR_PE_RATIO, pn_cols.TARGET_RATIOS)] = self.multiples.mu_price_ratios.loc[(target_ticker, ), pn_cols.MU_QTR_PE_RATIO].values
+            self.comp_ratios.loc[(target_ticker,), (pn_cols.QTR_PE_RATIO, pn_cols.TARGET_RATIOS)] = self.multiples.mu_time_bases.loc[(target_ticker,), pn_cols.MU_QTR_PE_RATIO].values
 
             self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.UN_WTD_RATIOS)] = (crs[pn_cols.MU_TTM_PE_RATIO]).groupby(level=1).mean().values
             self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.WTD_RATIOS)] = (crs[pn_cols.MU_TTM_PE_RATIO] * crs[pn_cols.PEER_WEIGHTS]).groupby(level=1).sum().values
             self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.WTD_ADJ_RATIOS)] = (crs[pn_cols.MU_TTM_PE_RATIO] * crs[pn_cols.PEER_WEIGHTS] * target_k[pn_cols.K_TTM_PE]).groupby(level=1).sum().values
-            self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.TARGET_RATIOS)] = self.multiples.mu_price_ratios.loc[(target_ticker, ), pn_cols.MU_TTM_PE_RATIO].values
+            self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.TARGET_RATIOS)] = self.multiples.mu_time_bases.loc[(target_ticker,), pn_cols.MU_TTM_PE_RATIO].values
 
     def extend_forecasts(self):
         self.ex_forecasts = None

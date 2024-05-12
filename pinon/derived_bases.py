@@ -6,24 +6,24 @@ import names as pn_cols
 from daily_prices import DailyPrices
 from fundamentals import Fundamentals
 
-class Multiples:
+class DerivedBases:
     def __init__(self, config):
         self.PE_COLS = [pn_cols.QTR_EPS, pn_cols.TTM_EPS, pn_cols.QTR_REV, pn_cols.TTM_REV, pn_cols.QTR_DIV, pn_cols.TTM_DIV, pn_cols.QTR_PE_RATIO, pn_cols.TTM_PE_RATIO]
         self.config = config
         self.qtr_derived_bases = None
-        self.mu_price_ratios = None
+        self.mu_time_bases = None
         self.daily_prices = DailyPrices()
         self.fundamentals = Fundamentals()
 
     def run_price_ratios(self):
         self.run_qtr_derived()
-        self.run_mu_price_ratios()
+        self.run_mu_time_bases()
         return self.qtr_derived_bases
 
     def run_qtr_derived(self):
 
         DF_COLS = [pn_cols.TICKER, pn_cols.QTR_EPS, pn_cols.TTM_EPS, pn_cols.QTR_REV, pn_cols.TTM_REV, pn_cols.QTR_DIV,
-                   pn_cols.TTM_DIV, pn_cols.QTR_PE_RATIO, pn_cols.TTM_PE_RATIO, pn_cols.MU_QTR_PRICE, pn_cols.BREAKING_EMPLOYED] + [n for (x, n) in pn_cols.ROI_LIST]
+                   pn_cols.TTM_DIV, pn_cols.QTR_PE_RATIO, pn_cols.TTM_PE_RATIO, pn_cols.MU_QTR_PRICE, pn_cols.BREAKING_EMPLOYED] + [ar_ndx for (x, ar_ndx, ta_ndx) in pn_cols.ROI_LIST]
 
         self.qtr_derived_bases = None
 
@@ -59,7 +59,6 @@ class Multiples:
                         = br.loc[upcoming_qtr, [pn_cols.EPS_BREAKING, pn_cols.REVENUE_BREAKING, pn_cols.DIV_BREAKING,
                                                 pn_cols.BREAKING_EMPLOYED]].to_list()
 
-            #
             df[pn_cols.TICKER] = ticker
             df[pn_cols.MU_QTR_PRICE] = dp[sf_cols.CLOSE]
 
@@ -74,7 +73,7 @@ class Multiples:
             # Derived references
 
             # ROI
-            for (num_yrs, roi_ndx) in pn_cols.ROI_LIST:
+            for (num_yrs, ar_ndx, ta_ndx) in pn_cols.ROI_LIST:
                 if num_yrs > 0:
                     # s = df.loc[:, pn_cols.MU_QTR_PRICE].rolling(num_yrs * 4).apply(self.calc_roi, raw=False, args=(df, ticker, num_yrs))
                     s = df.loc[:, pn_cols.MU_QTR_PRICE].rolling(num_yrs * 4).apply(self.calc_roi, raw=False, args=(df, ticker, num_yrs)).shift(-num_yrs * 4 + 1)
@@ -82,7 +81,7 @@ class Multiples:
                     l = len(df)
                     s = df.loc[:, pn_cols.MU_QTR_PRICE].rolling(l).apply(self.calc_roi, raw=False, args=(df, ticker, l / 4)).shift(-l + 1)
 
-                df.loc[:, roi_ndx] = s.values
+                df.loc[:, ar_ndx] = s.values
 
             # Append all of the tickers together
             self.qtr_derived_bases = df if self.qtr_derived_bases is None else pd.concat([self.qtr_derived_bases, df])
@@ -98,17 +97,17 @@ class Multiples:
         ann_roi = (((p + g)/p)**(1/num_yrs) - 1)
         return ann_roi
 
-    def run_mu_price_ratios(self):
-        self.mu_price_ratios = None
+    def run_mu_time_bases(self):
+        self.mu_time_bases = None
 
         if self.qtr_derived_bases is None:
             self.run_qtr_derived()
 
         for ticker in self.config.companies.index:
-            mm = pd.DataFrame(columns=[pn_cols.TICKER, pn_cols.MU_QTR_PE_RATIO, pn_cols.MU_TTM_PE_RATIO], index=pd.Index([t[1] for t in pn_cols.TIME_AVG_LIST]))
+            mm = pd.DataFrame(columns=[pn_cols.TICKER, pn_cols.MU_QTR_PE_RATIO, pn_cols.MU_TTM_PE_RATIO, pn_cols.MU_AROI], index=pd.Index([t[1] for t in pn_cols.TIME_AVG_LIST]))
             mm.index.name = pn_cols.TIME_AVG
-
             mpr = None
+
             for (num_yrs, ta_ndx) in pn_cols.TIME_AVG_LIST:
                 if num_yrs == 0:
                     mpr = [self.qtr_derived_bases.loc[(ticker,), pn_cols.QTR_PE_RATIO].tail(1).squeeze(), self.qtr_derived_bases.loc[(ticker,), pn_cols.TTM_PE_RATIO].tail(1).squeeze()]
@@ -121,9 +120,14 @@ class Multiples:
 
                 mm.loc[ta_ndx, [pn_cols.MU_QTR_PE_RATIO, pn_cols.MU_TTM_PE_RATIO]] = mpr
 
-            mm.loc[:, pn_cols.TICKER] = ticker
-            self.mu_price_ratios = mm if self.mu_price_ratios is None else pd.concat([self.mu_price_ratios, mm])
+            # Time averaged Annualized ROI
+            for (num_yrs, ar_ndx, ta_ndx) in pn_cols.ROI_LIST:
+                ar = self.qtr_derived_bases.loc[(ticker,), ar_ndx].mean()
+                mm.loc[ta_ndx, [pn_cols.MU_AROI]] = ar
 
-        self.mu_price_ratios.reset_index(inplace=True)
-        self.mu_price_ratios.set_index([pn_cols.TICKER, pn_cols.TIME_AVG], inplace=True)
-        self.mu_price_ratios.sort_index(inplace=True)
+            mm.loc[:, pn_cols.TICKER] = ticker
+            self.mu_time_bases = mm if self.mu_time_bases is None else pd.concat([self.mu_time_bases, mm])
+
+        self.mu_time_bases.reset_index(inplace=True)
+        self.mu_time_bases.set_index([pn_cols.TICKER, pn_cols.TIME_AVG], inplace=True)
+        self.mu_time_bases.sort_index(inplace=True)

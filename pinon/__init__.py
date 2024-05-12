@@ -1,5 +1,5 @@
 from config import Config
-from multiples import Multiples
+from derived_bases import DerivedBases
 from comps import Comps
 from daily_prices import DailyPrices
 from fundamentals import Fundamentals
