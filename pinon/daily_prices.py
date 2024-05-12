@@ -18,7 +18,7 @@ class DailyPrices:
         pl = period.lower()
         rule = None
         if pl == 'quarterly' or pl == 'q':
-            rule = 'Q'
+            rule = 'QE'
         if pl == 'monthly' or pl == 'm':
             rule = 'M'
 
@@ -31,7 +31,7 @@ class DailyPrices:
         pl = period.lower()
         rule = None
         if pl == 'quarterly' or pl == 'q':
-            rule = 'Q'
+            rule = 'QE'
         if pl == 'monthly' or pl == 'm':
             rule = 'M'
 

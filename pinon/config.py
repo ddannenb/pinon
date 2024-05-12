@@ -1,4 +1,5 @@
 import pathlib
+from os import environ as env
 import pandas as pd
 import simfin as sf
 
@@ -10,7 +11,6 @@ PROJ_PATH = pathlib.Path(__file__).parent.parent
 CONFIG_PATH = PROJ_PATH / "config"
 SIMFIN_DATA_PATH = PROJ_PATH / 'simfin_data'
 
-
 class Config:
     def __init__(self, master_config_name, target_sheet_name, past_years_requested=-1):
         self.companies = None
@@ -19,6 +19,7 @@ class Config:
         self.master_config_name = master_config_name
         self.target_sheet_name = target_sheet_name
         self.past_years_requested = past_years_requested
+        self.simfin_data_path = env.get('SIMFIN_DATA_PATH', SIMFIN_DATA_PATH)
 
         # TODO pass config_path into constructor from MasterConfig
         self.config_path = CONFIG_PATH / f"{master_config_name}.xlsx"
@@ -27,8 +28,8 @@ class Config:
         print(f"Config file found at: {self.config_path}")
 
         # Simfin setup
-        sf.set_data_dir(SIMFIN_DATA_PATH)
-        print(f"Simfin data directory: {SIMFIN_DATA_PATH}")
+        sf.set_data_dir(self.simfin_data_path)
+        print(f"Simfin data directory: {self.simfin_data_path}")
 
         sf.load_api_key(CONFIG_PATH / 'simfin_api_key.txt')
 

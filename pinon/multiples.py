@@ -73,7 +73,7 @@ class Multiples:
 
             # Derived references
 
-            # ROI and ROI score
+            # ROI
             for (num_yrs, roi_ndx) in pn_cols.ROI_LIST:
                 if num_yrs > 0:
                     # s = df.loc[:, pn_cols.MU_QTR_PRICE].rolling(num_yrs * 4).apply(self.calc_roi, raw=False, args=(df, ticker, num_yrs))
@@ -98,34 +98,11 @@ class Multiples:
         ann_roi = (((p + g)/p)**(1/num_yrs) - 1)
         return ann_roi
 
-    def calc_quarterly_pe(self):
-        for ticker in self.config.companies.index:
-            inc = self.fundamentals.get_quarterly_income_statement(ticker)
-            dp = self.daily_prices.get_downsampled_prices(ticker)
-            pe = pd.DataFrame(index=self.qtr_derived_bases.loc[ticker].index, columns=self.PE_COLS)
-
-            # pe[pn_cols.QTR_EPS] = inc[sf_cols.NET_INCOME] / inc[sf_cols.SHARES_DILUTED]
-            # pe[pn_cols.QTR_REV] = inc[sf_cols.REVENUE]
-            # pe[pn_cols.QTR_DIV] = dp[sf_cols.DIVIDENDS]
-            br = self.config.get_breaking_report(ticker)
-            if br is not None:
-                pe.loc[(br[pn_cols.REPORT_DATE]), pn_cols.QTR_EPS] = br[pn_cols.EPS_BREAKING]
-                pe.loc[(br[pn_cols.REPORT_DATE]), pn_cols.QTR_REV] = br[pn_cols.REVENUE_BREAKING]
-                # TODO - add dividends to breaking reports
-
-            # pe[pn_cols.TTM_EPS] = pe[pn_cols.QTR_EPS].rolling(4).sum()
-            # pe[pn_cols.TTM_REV] = pe[pn_cols.QTR_REV].rolling(4).sum()
-            # pe[pn_cols.TTM_DIV] = pe[pn_cols.QTR_DIV].rolling(4).sum()
-            pe[pn_cols.QTR_PE_RATIO] = dp[sf_cols.CLOSE] / pe[pn_cols.QTR_EPS] / 4
-            pe[pn_cols.TTM_PE_RATIO] = dp[sf_cols.CLOSE] / pe[pn_cols.TTM_EPS]
-
-            self.qtr_derived_bases.loc[(ticker,), self.PE_COLS] = pe.values
-
     def run_mu_price_ratios(self):
         self.mu_price_ratios = None
 
         if self.qtr_derived_bases is None:
-            self.run_price_ratios()
+            self.run_qtr_derived()
 
         for ticker in self.config.companies.index:
             mm = pd.DataFrame(columns=[pn_cols.TICKER, pn_cols.MU_QTR_PE_RATIO, pn_cols.MU_TTM_PE_RATIO], index=pd.Index([t[1] for t in pn_cols.TIME_AVG_LIST]))
