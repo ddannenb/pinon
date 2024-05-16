@@ -15,7 +15,8 @@ def main():
     comps = pn.Comps(config, db)
     comps.run()
     val = pn.Validation(config, db, comps)
-    val.run_aroi_scores()
+    val.run_regressions()
+    val.run_mu_windows()
 
     print('Here')
 

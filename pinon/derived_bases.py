@@ -72,7 +72,7 @@ class DerivedBases:
 
             # Derived references
 
-            # ROI
+            # AROI
             for (num_yrs, ar_ndx, ta_ndx) in pn_cols.AROI_LIST:
                 if num_yrs > 0:
                     # s = df.loc[:, pn_cols.MU_QTR_PRICE].rolling(num_yrs * 4).apply(self.calc_roi, raw=False, args=(df, ticker, num_yrs))
