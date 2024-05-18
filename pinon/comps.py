@@ -42,6 +42,7 @@ class Comps:
 
         self.all_ks.reset_index(inplace=True)
         self.all_ks.set_index([pn_cols.TARGET_TICKER, pn_cols.PEER_TICKER, pn_cols.REPORT_DATE], inplace=True)
+        self.all_ks.sort_index(inplace=True)
 
     def run_peer_ks(self):
         self.peer_ks = None
@@ -50,14 +51,14 @@ class Comps:
 
         for target_ticker in self.config.get_target_tickers():
             target_ks = self.all_ks.loc[target_ticker]
-            peer_weights = self.config.get_peer_weights(target_ticker)
+            peer_weights = self.config.get_peer_weight_ratios(target_ticker)
 
             for peer_ticker, peer_ks in target_ks.groupby(level=pn_cols.PEER_TICKER):
-                peer_k = pd.DataFrame(index=pd.Index([t[1] for t in pn_cols.TIME_AVG_LIST]), columns=[pn_cols.TARGET_TICKER, pn_cols.PEER_TICKER, pn_cols.K_QTR_PE, pn_cols.K_TTM_PE, pn_cols.PEER_WEIGHTS])
+                peer_k = pd.DataFrame(index=pd.Index([t[1] for t in pn_cols.TIME_AVG_LIST]), columns=[pn_cols.TARGET_TICKER, pn_cols.PEER_TICKER, pn_cols.K_QTR_PE, pn_cols.K_TTM_PE, pn_cols.PEER_WEIGHT_RATIOS])
                 peer_k.index.name = pn_cols.TIME_AVG
                 peer_k[pn_cols.TARGET_TICKER] = target_ticker
                 peer_k[pn_cols.PEER_TICKER] = peer_ticker
-                peer_k[pn_cols.PEER_WEIGHTS] = peer_weights[peer_ticker]
+                peer_k[pn_cols.PEER_WEIGHT_RATIOS] = peer_weights[peer_ticker]
                 peer_k[pn_cols.K_TTM_PE] = np.empty((len(peer_k), 0)).tolist()
                 peer_k[pn_cols.K_QTR_PE] = np.empty((len(peer_k), 0)).tolist()
                 # peer_k[pn_cols.K_TTM_PE] = 0.0
@@ -99,6 +100,7 @@ class Comps:
 
         self.peer_ks.reset_index(inplace=True, drop=False)
         self.peer_ks.set_index([pn_cols.TARGET_TICKER, pn_cols.PEER_TICKER, pn_cols.TIME_AVG], inplace=True)
+        self.peer_ks.sort_index(inplace=True)
 
     def run_target_ks(self):
         self.target_ks = None
@@ -107,13 +109,14 @@ class Comps:
 
         # self.target_ks is the weighted mean of the peer_ks averaged over time avg with outliers and nans removed, indexed by target ticker and time avg
         for target_ticker, peer_ks in self.peer_ks.groupby(level=pn_cols.TARGET_TICKER):
-            peer_ks_weighted = peer_ks[[pn_cols.K_QTR_PE, pn_cols.K_TTM_PE]].multiply(peer_ks[pn_cols.PEER_WEIGHTS], axis='index')
+            peer_ks_weighted = peer_ks[[pn_cols.K_QTR_PE, pn_cols.K_TTM_PE]].multiply(peer_ks[pn_cols.PEER_WEIGHT_RATIOS], axis='index')
             target_k = peer_ks_weighted.groupby(level=pn_cols.TIME_AVG, sort=False).sum()
             target_k[pn_cols.TARGET_TICKER] = target_ticker
             self.target_ks = target_k if self.target_ks is None else pd.concat([self.target_ks, target_k])
 
         self.target_ks.reset_index(inplace=True, drop=False)
         self.target_ks.set_index([pn_cols.TARGET_TICKER, pn_cols.TIME_AVG], inplace=True)
+        self.target_ks.sort_index(inplace=True)
 
     def calc_present_comp_ratios(self):
         ndx = pd.MultiIndex.from_product([self.config.get_target_tickers(), [t[1] for t in pn_cols.TIME_AVG_LIST]])
@@ -126,16 +129,16 @@ class Comps:
             # TODO - correct to use target k from each time avg, previously used max history??
             target_k = self.target_ks.loc[(target_ticker,)]
             crs = self.derived_bases.mu_time_bases.loc[self.config.get_peer_list(target_ticker)]
-            crs[pn_cols.PEER_WEIGHTS] = pd.Series(crs.index.get_level_values(0)).map(self.config.get_peer_weights(target_ticker)).values
+            crs[pn_cols.PEER_WEIGHT_RATIOS] = pd.Series(crs.index.get_level_values(0)).map(self.config.get_peer_weight_ratios(target_ticker)).values
 
             self.comp_ratios.loc[(target_ticker,), (pn_cols.QTR_PE_RATIO, pn_cols.UN_WTD_RATIOS)] = (crs[pn_cols.MU_QTR_PE_RATIO]).groupby(level=1).mean().values
-            self.comp_ratios.loc[(target_ticker,), (pn_cols.QTR_PE_RATIO, pn_cols.WTD_RATIOS)] = (crs[pn_cols.MU_QTR_PE_RATIO] * crs[pn_cols.PEER_WEIGHTS]).groupby(level=1).sum().values
-            self.comp_ratios.loc[(target_ticker,), (pn_cols.QTR_PE_RATIO, pn_cols.WTD_ADJ_RATIOS)] = (crs[pn_cols.MU_QTR_PE_RATIO] * crs[pn_cols.PEER_WEIGHTS] * target_k[pn_cols.K_QTR_PE]).groupby(level=1).sum().values
+            self.comp_ratios.loc[(target_ticker,), (pn_cols.QTR_PE_RATIO, pn_cols.WTD_RATIOS)] = (crs[pn_cols.MU_QTR_PE_RATIO] * crs[pn_cols.PEER_WEIGHT_RATIOS]).groupby(level=1).sum().values
+            self.comp_ratios.loc[(target_ticker,), (pn_cols.QTR_PE_RATIO, pn_cols.WTD_ADJ_RATIOS)] = (crs[pn_cols.MU_QTR_PE_RATIO] * crs[pn_cols.PEER_WEIGHT_RATIOS] * target_k[pn_cols.K_QTR_PE]).groupby(level=1).sum().values
             self.comp_ratios.loc[(target_ticker,), (pn_cols.QTR_PE_RATIO, pn_cols.TARGET_RATIOS)] = self.derived_bases.mu_time_bases.loc[(target_ticker,), pn_cols.MU_QTR_PE_RATIO].values
 
             self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.UN_WTD_RATIOS)] = (crs[pn_cols.MU_TTM_PE_RATIO]).groupby(level=1).mean().values
-            self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.WTD_RATIOS)] = (crs[pn_cols.MU_TTM_PE_RATIO] * crs[pn_cols.PEER_WEIGHTS]).groupby(level=1).sum().values
-            self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.WTD_ADJ_RATIOS)] = (crs[pn_cols.MU_TTM_PE_RATIO] * crs[pn_cols.PEER_WEIGHTS] * target_k[pn_cols.K_TTM_PE]).groupby(level=1).sum().values
+            self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.WTD_RATIOS)] = (crs[pn_cols.MU_TTM_PE_RATIO] * crs[pn_cols.PEER_WEIGHT_RATIOS]).groupby(level=1).sum().values
+            self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.WTD_ADJ_RATIOS)] = (crs[pn_cols.MU_TTM_PE_RATIO] * crs[pn_cols.PEER_WEIGHT_RATIOS] * target_k[pn_cols.K_TTM_PE]).groupby(level=1).sum().values
             self.comp_ratios.loc[(target_ticker,), (pn_cols.TTM_PE_RATIO, pn_cols.TARGET_RATIOS)] = self.derived_bases.mu_time_bases.loc[(target_ticker,), pn_cols.MU_TTM_PE_RATIO].values
 
     def extend_forecasts(self):
