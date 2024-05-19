@@ -88,6 +88,7 @@ class Validation:
                     k_qtr_pe_slice[pn_cols.PEER_TICKER] = peer_ticker
                     k_qtr_pe_slice[pn_cols.TIME_AVG] = ta_ndx
                     self.peer_k_scores = k_qtr_pe_slice if self.peer_k_scores is None else pd.concat([self.peer_k_scores, k_qtr_pe_slice])
+                    # self.peer_k_scores.dropna(axis=0, inplace=True)
 
         # Reindex and sort
         self.peer_k_scores.reset_index(inplace=True)
@@ -96,6 +97,7 @@ class Validation:
 
         # Peer weighted K scores
         # Iterate and slice by target ticker and time avg
+        peer_k_wtd_scores = None
         for target_ticker in self.config.get_target_tickers():
             for (ta_num_yrs, ta_ndx) in [x for x in pn_cols.TIME_AVG_LIST if x[0] > 0]:
                 pks_slice = self.peer_k_scores.loc[pd.IndexSlice[target_ticker, :, ta_ndx, :], [pn_cols.K_QTR_PE, pn_cols.MU_K_QTR_PE]]
@@ -107,10 +109,22 @@ class Validation:
                     pks_slice.loc[pks_peer_sl, [pn_cols.K_QTR_PE_WTD_EX]] = pws * pks_slice.loc[pks_peer_sl, pn_cols.K_QTR_PE]
                     pks_slice.loc[pks_peer_sl, [pn_cols.MU_K_QTR_PE_WTD_EX]] = pws * pks_slice.loc[pks_peer_sl, pn_cols.MU_K_QTR_PE]
 
-                pks_slice = self.peer_k_scores.loc[pd.IndexSlice[target_ticker, :, ta_ndx, :], [pn_cols.K_QTR_PE_WTD_EX, pn_cols.MU_K_QTR_PE_WTD_EX, pn_cols.PEER_WEIGHT_SCORE]]
-                pks_slice[pn_cols.PEER_WEIGHT_SCORE] = self.config.companies.loc[peer_ticker, pn_cols.PEER_WEIGHT_SCORE]
-                peer_ks_sum = pks_slice.groupby(level=pn_cols.REPORT_DATE).sum()
-                peer_ks_calc = pd.DataFrame(columns=[pn_cols.K_QTR_PE, pn_cols.MU_K_QTR_PE], index = pks_slice.index)
-                peer_ks_calc[pn_cols.K_QTR_PE] = peer_ks_sum[pn_cols.K_QTR_PE_WTD_EX] / peer_ks_sum[pn_cols.PEER_WEIGHT_SCORE]
-                peer_ks_calc[pn_cols.MU_K_QTR_PE] = peer_ks_sum[pn_cols.MU_K_QTR_PE_WTD_EX] / peer_ks_sum[pn_cols.PEER_WEIGHT_SCORE]
-                print('Break')
+                pks_wtd_slice = pks_slice.groupby(level=pn_cols.REPORT_DATE).sum(min_count=1)
+
+                pks_wtd_slice[pn_cols.K_QTR_PE] = pks_wtd_slice[pn_cols.K_QTR_PE_WTD_EX].div(pks_wtd_slice[pn_cols.PEER_WEIGHT_SCORE])
+                pks_wtd_slice[pn_cols.MU_K_QTR_PE] = pks_wtd_slice[pn_cols.MU_K_QTR_PE_WTD_EX].div(pks_wtd_slice[pn_cols.PEER_WEIGHT_SCORE])
+                # Target under valued compared to peer => 1, overvalued => -1
+                pks_wtd_slice[pn_cols.PEER_K_SCORE] = np.where(pks_wtd_slice[pn_cols.K_QTR_PE] < pks_wtd_slice[pn_cols.MU_K_QTR_PE], 1, np.where(np.isnan(pks_wtd_slice[pn_cols.MU_K_QTR_PE]), np.nan, -1))
+                pks_wtd_slice[pn_cols.TICKER] = target_ticker
+                pks_wtd_slice[pn_cols.PEER_TICKER] = pn_cols.ALL_PEERS_WTD
+                pks_wtd_slice[pn_cols.TIME_AVG] = ta_ndx
+                peer_k_wtd_scores = pks_wtd_slice if peer_k_wtd_scores is None else pd.concat([peer_k_wtd_scores, pks_wtd_slice])
+
+        peer_k_wtd_scores.reset_index(inplace=True)
+        peer_k_wtd_scores.set_index([pn_cols.TICKER, pn_cols.PEER_TICKER, pn_cols.TIME_AVG, pn_cols.REPORT_DATE], inplace=True)
+        peer_k_wtd_scores.sort_index(inplace=True)
+
+        peer_k_wtd_scores.drop([pn_cols.PEER_WEIGHT_SCORE, pn_cols.K_QTR_PE_WTD_EX, pn_cols.MU_K_QTR_PE_WTD_EX], axis=1, inplace=True)
+        self.peer_k_scores = pd.concat([self.peer_k_scores, peer_k_wtd_scores])
+        self.peer_k_scores.sort_index(inplace=True)
+        print('Break')
