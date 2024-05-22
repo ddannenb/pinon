@@ -18,6 +18,7 @@ def main():
     val.run_aroi_regressions()
     val.run_aroi_scores()
     val.run_peer_k_scores()
+    val.compile_validation_stats()
 
     print('Here')
 

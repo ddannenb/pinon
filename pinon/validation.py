@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from scipy import stats
 
 import config
 import names as pn_cols
@@ -20,7 +21,7 @@ class Validation:
         for ticker in self.config.get_target_tickers():
             db_slice = self.derived_bases.qtr_derived_bases.loc[ticker]
 
-            for (num_yrs, ar_win, ta_ndx) in pn_cols.AROI_LIST:
+            for (num_yrs, ar_win, z) in pn_cols.AROI_LIST:
                 aroi_partial = pd.DataFrame(columns=[pn_cols.TICKER, pn_cols.AROI_WINDOW, pn_cols.AROI_FORWARD], index=db_slice.index)
 
                 if num_yrs > 0:
@@ -52,7 +53,7 @@ class Validation:
     def run_aroi_scores(self):
         for target_ticker in self.config.get_target_tickers():
             # Skip the max years AROI
-            for (ars_num_yrs, ar_win, ta_ndx) in [x for x in pn_cols.AROI_LIST if x[0] > 0]:
+            for (ars_num_yrs, ar_win, z) in [x for x in pn_cols.AROI_LIST if x[0] > 0]:
                 # Skip the 0 year time average
                 for (ta_num_yrs, ta_ndx) in [x for x in pn_cols.TIME_AVG_LIST if x[0] > 0]:
                     aroi_slice = self.aroi_regression.loc[(target_ticker, ar_win), ([pn_cols.AROI_FORWARD])]
@@ -81,6 +82,9 @@ class Validation:
                     k_qtr_pe_slice.dropna(axis=0, inplace=True)
                     if len(k_qtr_pe_slice) == 0:
                         break
+                    # Drop outliers
+                    m = np.abs(stats.zscore((k_qtr_pe_slice[pn_cols.K_QTR_PE] *10000).astype('int'))) <= 2.0
+                    k_qtr_pe_slice = k_qtr_pe_slice[m]
                     k_qtr_pe_slice[pn_cols.MU_K_QTR_PE] = k_qtr_pe_slice[pn_cols.K_QTR_PE].rolling(ta_num_yrs * 4).mean()
                     # Target under valued compared to peer => 1, overvalued => -1
                     k_qtr_pe_slice[pn_cols.PEER_K_SCORE] = np.where(k_qtr_pe_slice[pn_cols.K_QTR_PE] < k_qtr_pe_slice[pn_cols.MU_K_QTR_PE], 1, np.where(np.isnan(k_qtr_pe_slice[pn_cols.MU_K_QTR_PE]), np.nan, -1))
@@ -88,7 +92,6 @@ class Validation:
                     k_qtr_pe_slice[pn_cols.PEER_TICKER] = peer_ticker
                     k_qtr_pe_slice[pn_cols.TIME_AVG] = ta_ndx
                     self.peer_k_scores = k_qtr_pe_slice if self.peer_k_scores is None else pd.concat([self.peer_k_scores, k_qtr_pe_slice])
-                    # self.peer_k_scores.dropna(axis=0, inplace=True)
 
         # Reindex and sort
         self.peer_k_scores.reset_index(inplace=True)
@@ -128,3 +131,21 @@ class Validation:
         self.peer_k_scores = pd.concat([self.peer_k_scores, peer_k_wtd_scores])
         self.peer_k_scores.sort_index(inplace=True)
         print('Break')
+
+    def compile_validation_stats(self):
+        for target_ticker in self.config.get_target_tickers():
+            for (ars_num_yrs, ar_win, z) in [x for x in pn_cols.AROI_LIST if x[0] > 0]:
+                for (ta_num_yrs, ta_ndx) in [x for x in pn_cols.TIME_AVG_LIST if x[0] > 0]:
+                    ars_sl = self.aroi_scores.loc[(target_ticker, ar_win, ta_ndx), ([pn_cols.AROI_SCORE])]
+                    for peer_ticker in [pn_cols.ALL_PEERS_WTD] + self.config.get_peer_list(target_ticker):
+                        pks_sl = self.peer_k_scores.loc[(target_ticker, peer_ticker, ta_ndx), ([pn_cols.PEER_K_SCORE])]
+                        val_raw = pks_sl[pn_cols.PEER_K_SCORE] + ars_sl[pn_cols.AROI_SCORE]
+                        val_raw.dropna(axis=0, inplace=True)
+                        val_cnt = len(val_raw)
+                        under_val = val_raw[val_raw > 0].count()
+                        over_val = val_raw[val_raw < 0].count()
+
+                        if val_cnt > 0:
+                            pred_correct = (under_val + over_val) / val_cnt
+                            print(f'{pred_correct:.2f}:{over_val}+{under_val}/{val_cnt} correct: {target_ticker}:{peer_ticker} AROI: {ar_win} Time Avg: {ta_ndx}')
+

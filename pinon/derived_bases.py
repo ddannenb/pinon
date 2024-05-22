@@ -23,7 +23,7 @@ class DerivedBases:
     def run_qtr_bases(self):
 
         DF_COLS = [pn_cols.TICKER, pn_cols.QTR_EPS, pn_cols.TTM_EPS, pn_cols.QTR_REV, pn_cols.TTM_REV, pn_cols.QTR_DIV,
-                   pn_cols.TTM_DIV, pn_cols.QTR_PE_RATIO, pn_cols.TTM_PE_RATIO, pn_cols.MU_QTR_PRICE, pn_cols.BREAKING_EMPLOYED] + [ar_ndx for (x, ar_ndx, ta_ndx) in pn_cols.AROI_LIST]
+                   pn_cols.TTM_DIV, pn_cols.QTR_PE_RATIO, pn_cols.TTM_PE_RATIO, pn_cols.MU_QTR_PRICE, pn_cols.BREAKING_EMPLOYED] + [ar_ndx for (x, ar_ndx, z) in pn_cols.AROI_LIST]
 
         self.qtr_derived_bases = None
 
@@ -73,7 +73,7 @@ class DerivedBases:
             # Derived references
 
             # AROI
-            for (num_yrs, ar_ndx, ta_ndx) in pn_cols.AROI_LIST:
+            for (num_yrs, ar_ndx, z) in pn_cols.AROI_LIST:
                 if num_yrs > 0:
                     # s = df.loc[:, pn_cols.MU_QTR_PRICE].rolling(num_yrs * 4).apply(self.calc_roi, raw=False, args=(df, ticker, num_yrs))
                     s = df.loc[:, pn_cols.MU_QTR_PRICE].rolling(num_yrs * 4).apply(self.calc_roi, raw=False, args=(df, ticker, num_yrs)).shift(-num_yrs * 4 + 1)
@@ -121,9 +121,9 @@ class DerivedBases:
                 mm.loc[ta_ndx, [pn_cols.MU_QTR_PE_RATIO, pn_cols.MU_TTM_PE_RATIO]] = mpr
 
             # Time averaged Annualized ROI
-            for (num_yrs, ar_ndx, ta_ndx) in pn_cols.AROI_LIST:
-                ar = self.qtr_derived_bases.loc[(ticker,), ar_ndx].mean()
-                mm.loc[ta_ndx, [pn_cols.MU_AROI]] = ar
+            # for (num_yrs, ar_ndx, ta_ndx) in pn_cols.AROI_LIST:
+            #     ar = self.qtr_derived_bases.loc[(ticker,), ar_ndx].mean()
+            #     mm.loc[ta_ndx, [pn_cols.MU_AROI]] = ar
 
             mm.loc[:, pn_cols.TICKER] = ticker
             self.mu_time_bases = mm if self.mu_time_bases is None else pd.concat([self.mu_time_bases, mm])
