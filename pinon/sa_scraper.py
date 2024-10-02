@@ -1,4 +1,5 @@
 import requests
+import pandas as pd
 
 SA_SITE_API_URL = 'https://seekingalpha.com/api/v3'
 SA_SYMBOL_LOOKUP_PATH_P1_TICKER = '/symbols/{ticker}'
@@ -27,15 +28,43 @@ class SaScraper:
         id = res_json.get('data', {}).get('id')
         return None if id is None else int(id)
 
-    def get_earnings_estimates(self, ticker):
-        id = self.get_ticker_id(ticker)
-        if id is None:
-            print(f'Ticker: {ticker} was not found')
+    def parse_tickers(self, tickers):
+        """
+        Parse multiple tickers as input
+        :param tickers:
+        :returns: List of tickers
+        :raise: TypeError
+        """
+        if isinstance(tickers, list):
+            ts = tickers
+        elif isinstance(tickers, str):
+            tickers = tickers.replace(' ', '')
+            ts = tickers.split(',')
+        else:
+            raise TypeError(f'pinon: Invalid type for argument tickers: {type(tickers)}. Use a list or command separated string')
+        return ts
+
+    def get_earnings_estimates(self, tickers, period='quarterly'):
+        eests = pd.DataFrame(columns=[])
+        ts = self.parse_tickers(tickers)
+
+
+    def get_earnings_estimate(self, ticker):
+        ticker_id = self.get_ticker_id(ticker)
+        if ticker_id is None:
+            print(f'Ticker: {ticker} was not found.')
             return None
 
-        url = SA_SITE_API_URL + SA_EPS_ESTIMATES_PATH_P1_TICKER_ID.format(ticker_id=id)
+        url = SA_SITE_API_URL + SA_EPS_ESTIMATES_PATH_P1_TICKER_ID.format(ticker_id=ticker_id)
         res = requests.get(url, headers=SA_API_HDRS)
         if res.status_code != 200:
             return None
         res_json = res.json()
-        print(res_json)
+        try:
+            est_json = res_json['estimates'][f'{ticker_id}']
+        except:
+            print(f'Could not recurse into response for earnings estimates for ticker: {ticker}.')
+            return None
+
+        return res_json
+
