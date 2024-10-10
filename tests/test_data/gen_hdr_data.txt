@@ -1,0 +1,23 @@
+:method	GET
+:authority	seekingalpha.com
+:scheme	https
+:path	/api/v3/symbols/V
+pragma	no-cache
+cache-control	no-cache
+sec-ch-ua	"Google Chrome";v="129", "Not=A?Brand";v="8", "Chromium";v="129"
+sec-ch-ua-mobile	?0
+sec-ch-ua-platform	"macOS"
+upgrade-insecure-requests	1
+user-agent	Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36
+accept	text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7
+sec-fetch-site	none
+sec-fetch-mode	navigate
+sec-fetch-user	?1
+sec-fetch-dest	document
+accept-encoding	gzip, deflate, br, zstd
+accept-language	en-US,en;q=0.9
+cookie	machine_cookie=4135103305853
+cookie	_px3=31cff0137a52ef4323e6debe363e70305da00af20de877555dc2b397070c09d8:iD24mD+3wrbhVLaMncNOd1x1Bm8ZQTAOOSpGc7G3B9lsT7I+9h02M86piv+WaiQ3N5iNR/qga8vjDTlf8jjBXA==:1000:vRqwDPanS/EboUFGAioAb1knKiw2GpJqtG1+8L2HKrX3W3sx+UIWgPKXrZc5Myl3KqplvXgpE2auwh5zL9iZZxZKpk1vMTzt/01m/wCWT9bZpTnQEuyx5f2xtht3J5gLC7CGG33SyZDkqRTYvRTVmk4Gsi2Igb3Azph9G0HV3l/mZCgzX5HqnekHhKmpwJO9pp3sx1k8HHwjXpo2Xwrgt9TYp8SKbjVIN2CVSdIlD1I=
+cookie	LAST_VISITED_PAGE=%7B%22pathname%22%3A%22https%3A%2F%2Fseekingalpha.com%2Fsymbol%2FV%2Fearnings%2Festimates%22%2C%22pageKey%22%3A%22be19b328-242f-4cb4-9ac1-2bdec5cb75a4%22%7D
+cookie	userLocalData_mone_session_lastSession=%7B%22machineCookie%22%3A%228964263698143%22%2C%22machineCookieSessionId%22%3A%228964263698143%261727961287128%22%2C%22sessionStart%22%3A1727961287128%2C%22sessionEnd%22%3A1727963411599%2C%22firstSessionPageKey%22%3A%22be19b328-242f-4cb4-9ac1-2bdec5cb75a4%22%2C%22isSessionStart%22%3Atrue%2C%22lastEvent%22%3A%7B%22event_type%22%3A%22mousemove%22%2C%22timestamp%22%3A1727961611599%7D%7D
+priority	u=0, i

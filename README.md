@@ -13,3 +13,7 @@ pytest: 7.4.0
 
 Issue with python debugger crashing when debugging auto reload module from Jupyter notebook.  This a version issue with debugpy.  pip uninstall/install debugpy to co
 rrect.
+
+Environment variables:
+SIMFIN_DATA_PATH path to SimFin bulk data folder.  This can be a reduced data set, using utils/sf-gen-test-data
+SQLITE_DB_PATH path to the folder for storing db files

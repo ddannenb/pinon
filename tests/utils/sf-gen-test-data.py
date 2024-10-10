@@ -74,9 +74,9 @@ def main():
     qis_test = qis.loc[t]
     qis_test.to_csv(SIMFIN_TEST_DATA_PATH / "us-derived-shareprices-daily.csv", sep=';')
 
-    sf.set_data_dir(SIMFIN_TEST_DATA_PATH)
-    qis_trunc = sf.load_derived_shareprices(variant='daily', market='us', refresh_days=INFINITY_DAYS,
-                                         index=[sf_cols.TICKER, sf_cols.DATE])
+    # sf.set_data_dir(SIMFIN_TEST_DATA_PATH)
+    # qis_trunc = sf.load_derived_shareprices(variant='daily', market='us', refresh_days=INFINITY_DAYS,
+    #                                      index=[sf_cols.TICKER, sf_cols.DATE])
 
     print("Income statements loaded from SimFin")
 

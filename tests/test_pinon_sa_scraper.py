@@ -2,7 +2,7 @@ import unittest
 import pinon as pn
 
 
-class TestPinonSAScraper(unittest.TestCase):
+class TestPinonSaScraper(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         self.scraper = pn.SaScraper()
@@ -10,7 +10,7 @@ class TestPinonSAScraper(unittest.TestCase):
     def test_get_ticker_id(self):
         scr = pn.SaScraper()
         id = scr.get_ticker_id('V')
-        self.assertEqual(id,9691, 'The returned ticker id is not correct.')  # add assertion here
+        self.assertEqual(9691, id, 'The returned ticker id is not correct.')  # add assertion here
         id = scr.get_ticker_id('NOTATICKER')
         self.assertIsNone(id, 'The ticker is invalid and the ticker id should be None.')
 
@@ -27,6 +27,9 @@ class TestPinonSAScraper(unittest.TestCase):
     def test_get_earnings_estimate(self):
         scr = pn.SaScraper()
         eest = scr.get_earnings_estimate('V')
+        rows, columns = eest.shape
+        self.assertGreaterEqual(rows, 1)
+        self.assertGreaterEqual(columns, 1)
         print(eest)
 
     def test_get_earnings_estimates(self):

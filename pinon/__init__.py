@@ -6,3 +6,4 @@ from daily_prices import DailyPrices
 from fundamentals import Fundamentals
 from companies import Companies
 from sa_scraper import SaScraper
+from configX import ConfigX
