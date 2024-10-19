@@ -27,11 +27,11 @@ class TestPinonConfigX(unittest.TestCase):
         cx = pn.ConfigX()
         user_name = 'Test User'
         new_user_name = 'New User Name'
-        user_id = cx.create_user(user_name)
+        user_id = cx.create_user(name=user_name)
         read_user = cx.read_user(user_id)
         self.assertEqual(user_name, read_user['name'])
 
-        num_up = cx.update_user(user_id, new_user_name)
+        num_up = cx.update_user(user_id, name=new_user_name)
         self.assertEqual(1, num_up)
         up_user = cx.read_user(user_id)
         self.assertEqual(new_user_name, up_user['name'])
@@ -42,25 +42,31 @@ class TestPinonConfigX(unittest.TestCase):
         no_user = cx.read_user(user_id)
         self.assertIsNone(no_user)
 
-    def test_crud_peer_group(self):
+    def test_crud(self):
         cx = pn.ConfigX()
-        peer_group_name = 'Peer group name'
-        num_years_requested = 22
-        user_name = 'Test Linked User'
-        user_id = cx.create_user(user_name)
-        peer_group_id = cx.create_peer_group(user_id, peer_group_name, num_years_requested)
-        read_peer_group = cx.read_peer_group(peer_group_id)
+        pg_name = 'Peer group name'
+        new_pg_name = 'New peer group name'
+        pyr = 22
+        new_nyr = 33
+        un = 'Test Linked User'
+        u_id = cx.create_user(name=un)
+        pg_id = cx.create_peer_group(user_id=u_id, name=pg_name, past_years_requested=pyr)
+        read_pg = cx.read_peer_group(pg_id)
+        self.assertEqual(read_pg['user_id'], u_id)
+        self.assertEqual(read_pg['name'], pg_name)
+        self.assertEqual(read_pg['past_years_requested'], pyr)
+
+        # num_up = cx.update_peer_group(pg_id, u_id, new_pg_name, new_nyr)
+        num_up = cx.update_peer_group(pg_id, past_years_requested=new_nyr)
+        self.assertEqual(1, num_up)
+        up_pg = cx.read_peer_group(pg_id)
+        self.assertEqual(up_pg['user_id'], u_id)
+        self.assertEqual(up_pg['name'], pg_name)
+        self.assertEqual(up_pg['past_years_requested'], new_nyr)
+
+
 
         print('Break')
-
-    def test_create(self):
-        cx = pn.ConfigX()
-        # cx.create('peer_group', {'user_id': 'A User Id', 'name': 'A Name', 'past_year_requested': 34})
-        cx.create(configX.PEER_GROUP_SCHEMA, {'user_id': 111, 'name': 'A Name', 'past_years_requested': 34})
-        print('Break')
-
-
-
 
 
 if __name__ == '__main__':
