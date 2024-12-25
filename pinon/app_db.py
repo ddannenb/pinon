@@ -1,4 +1,4 @@
-
+import pinon as pn
 # Sqlite schema
 USER_SCHEMA = {
     0: 'user',
@@ -12,15 +12,26 @@ PEER_GROUP_SCHEMA = {
     'past_years_requested': 'INTEGER'
 }
 
-class UserConfig:
+class AppDb:
     def __init__(self, sql_connection):
-        self.sql_connection = sql_connection
+        self.sql_connection = pn.sql_connection()
 
     def create_user(self, **kwargs):
         return self.create(USER_SCHEMA, kwargs)
 
     def read_user(self, id):
         return self.read(USER_SCHEMA, id)
+
+    def read_user_by_name(self, name):
+        cols_l = [c for c in list(USER_SCHEMA.keys())[1:]]
+        sql = f"SELECT * FROM user WHERE name = {name};"
+        cursor = self.sql_connection.cursor()
+        cursor.execute(sql)
+        res = cursor.fetchone()
+        if res is None:
+            return None
+        else:
+            return {k: v for (k, v) in zip(cols_l, res)}
 
     def delete_user(self, id):
         return self.delete(USER_SCHEMA, id)
