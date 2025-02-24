@@ -8,68 +8,99 @@ from pinon import sql_connection
 
 from gui import get_authorized_user
 
-add_icon = dbc.Button(
-    html.I(className="bi bi-plus-circle-fill", style={"font-size": "1.5rem"}),
-    color="success",
-    className="p-0",
-    style={"border-radius": "50%", "width": "48px", "height": "48px"},
-    id="add-icon-btn"
-)
+dash.register_page(__name__, "/peer-groups")
+# Page layout
+layout = dbc.Container([
+    html.Br(),
+    html.H1('Peer Groups'),
+    html.Br(),
+    html.Br(),
+])
 
-dash.register_page(__name__)
+add_pg_button = dbc.Button("Create a Peer Group", id="add-pg-button", className="me-2", n_clicks=0)
+layout.children.append(add_pg_button)
 
-show_target_input = False
-target_input = html.Div(
-    [
-        dbc.InputGroup(
-            [
-                dbc.Col(
-                    dbc.Input(id="target-input", placeholder="Peer Group Name", type="text"), width= 2
-                ),
-                dbc.Input(id="peers-input", placeholder="Peer Tickers (comma separated list)", type="text"),
-                dbc.Button("Add Peer Group", id="add-peer-group-btn", color="secondary", className="me-2", n_clicks=0)
-            ]
-        ),
-    ],
-    style={"display": "block" if show_target_input else "none"}
+@callback(
+    Output("url", "href"),
+    # Output("url", "refresh"),
+
+    [Input("add-pg-button", "n_clicks")],
+    prevent_initial_call=True
 )
+def on_add_pg_button(n):
+    # if n != 0:
+    #     return "/create-peer-group", True
+    # return "/peer-groups", False
+
+    if n != 0:
+        return "/create-peer-group"
+    return "/peer-groups"
 
 # Dummy data for demonstration purposes
 dummy_data = [
-    {"Ticker": "AAPL", "Analyze": "Yes"},
-    {"Ticker": "GOOG", "Analyze": "No"},
-    {"Ticker": "MSFT", "Analyze": "Yes"},
+    {"Ticker": "AAPL", "Analyze": "Red"},
+    {"Ticker": "GOOG", "Analyze": "Red"},
+    {"Ticker": "MSFT", "Analyze": "White"},
 ]
 
-analysis_table = html.Div(
+STYLE_HEADER = {
+    "backgroundColor": "#799DBF",
+    "color": "white",
+    "fontWeight": "bold",
+}
+
+STYLE_DATA = {
+    "whiteSpace": "normal",
+    "height": "auto",
+}
+
+COLUMNS = [
+    {"name": "Name", "id": "Name", "type": "text"},
+    {"name": "Tickers", "id": "Ticker", "type": "text"},
+    {"name": "Analyze", "id": "Analyze", "presentation": "dropdown"},
+]
+
+DROP_DOWN = {
+    'Analyze': {
+        'options': [{'label': 'Red', 'value': 'Red'}, {'label': 'White', 'value': 'White'}, {'label': 'Blue', 'value': 'Blue'}]
+    }
+}
+DROP_DOWN_CONDITIONAL = [{
+    'if': {
+        'column_id': 'Analyze',
+        'filter_query': '{row_id} eq 1'
+    },
+    'options': [{'label': 'RED', 'value': 'Red'}, {'label': 'WHITE', 'value': 'White'},
+                {'label': 'BLUE', 'value': 'Blue'}]
+}]
+
+peer_groups_table = html.Div(
     [
         dash_table.DataTable(
-            id="analysis-datatable",
-            columns=[
-                {"name": "Ticker", "id": "Ticker", "type": "text"},
-                {"name": "Analyze", "id": "Analyze", "type": "text"},
-            ],
+            id="peer-group-datatable",
+            columns=COLUMNS,
+            # dropdown_conditional=DROP_DOWN_CONDITIONAL,
+            dropdown=DROP_DOWN,
+            editable=True,
             data=dummy_data,
-            style_data={
-                "whiteSpace": "normal",
-                "height": "auto",
-            },
-            style_header={
-                "backgroundColor": "#799DBF",
-                "color": "white",
-                "fontWeight": "bold",
-            },
-            style_data_conditional=[],
-            row_selectable="single",  # Allows selecting a single row
+            # style_data=STYLE_DATA,
+            # style_header=STYLE_HEADER,
+            # style_data_conditional=[],
+            # row_selectable="single",  # Allows selecting a single row
             active_cell=None,  # Initial state (no cell selected)
         )
     ]
 )
+layout.children.append(peer_groups_table)
+
+# Temp
+temp_alert = dbc.Alert(id='temp-alert')
+layout.children.append(temp_alert)
 
 # Callback to dynamically update styles based on the selected row
 @callback(
-    Output("analysis-datatable", "style_data_conditional"),
-    Input("analysis-datatable", "active_cell"),
+    Output("peer-group-datatable", "style_data_conditional"),
+    Input("peer-group-datatable", "active_cell"),
 )
 def update_styles(active_cell):
     if active_cell:
@@ -85,29 +116,30 @@ def update_styles(active_cell):
         ]
     # By default, no styles are applied
 
-@callback(
-    Output('placeholder-out', 'children'),
-    Input('analysis-datatable', 'active_cell'),
-)
-def display_selected_row(active_cell):
-    if active_cell:
-        row_index = active_cell['row']
-        print(f"Selected row index: {row_index}")
-        return f"Selected row index: {row_index}"
-    print("No row selected")
-    return "No row selected"
+# @callback(
+#     Output('temp_alert', 'children'),
+#     Input('peer-group-datatable', 'active_cell'),
+# )
+# def display_selected_row(active_cell):
+#     if active_cell:
+#         row_index = active_cell['row']
+#         print(f"Selected row index: {row_index}")
+#         return f"Selected row index: {row_index}"
+#     print("No row selected")
+#     return "No row selected"
 
-# Page layout
-layout = dbc.Container([
-    html.Br(),
-    html.H1('Analysis Targets'),
-    html.Br(),
-    add_icon,
-    analysis_table,
-    target_input,
-    html.Br(),
-    html.Div(id='placeholder-out'),
-])
+# First row editable
+@callback(
+    Output("peer-group-datatable", "editable"),  # Control the 'editable' property
+    Input("peer-group-datatable", "active_cell"),  # Detect the currently active cell
+)
+def limit_editability(active_cell):
+    # Check if the active cell is in the first row (row_index = 0)
+    if active_cell is not None and active_cell["row"] == 0:
+        return True  # Allow editing
+
+    # Otherwise, make the row non-editable
+    return False
 
 
 # @callback(
